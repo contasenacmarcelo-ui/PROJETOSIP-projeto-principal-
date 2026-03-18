@@ -50,6 +50,10 @@ header .side-left img{
     transition: ease .05s;
 }
 
+.nav-celular{
+    display: none;
+}
+
 /* ------------------------------------------ Main -------------------------------------------------------------------------------------- */
 
 main{
@@ -73,7 +77,7 @@ main p{
     font-family: "Sora", sans-serif;
     font-size: 15px;
     width: 700px;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .main-right img{
@@ -88,11 +92,36 @@ button{
     width: 300px;
     height: 50px;
     color: rgb(255, 255, 255);
+    font-family: "Datatype", monospace;
+    font-size: 20px;
+    margin: 5px;
+    letter-spacing: 1.5px;
+}
+
+.aButton{
+    cursor: pointer;
 }
 
 @media (max-width: 1430px){
     main p{
         width: 500px;
+    }
+}
+
+@media (max-width: 1200px){
+    .side-right{
+        display: none;
+    }
+
+    .nav-celular{
+    display: flex;
+    color: white;
+    }
+
+    .nav-celular .bi-list {
+    font-size: 50px;  /* ou o tamanho que quiser */
+    cursor: pointer;  /* opcional, para indicar que é clicável */
+    color: white;     /* para garantir visibilidade */
     }
 }
 
