@@ -55,3 +55,127 @@ header .side-left img{
 }
 
 /* ----------Main------------- */
+/* ---------- Continuação do seu CSS (Main / Card de Termos) ------------- */
+
+.terms-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    padding: 20px;
+}
+
+.terms-card {
+    background-color: #0b1e33; /* Azul profundo para o card */
+    width: 100%;
+    max-width: 650px;
+    padding: 40px;
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.terms-card h1 {
+    font-family: "Outfit", sans-serif;
+    color: white;
+    font-size: 26px;
+    text-align: center;
+}
+
+.subtitle {
+    font-family: "Sora", sans-serif;
+    color: #94a3b8;
+    font-size: 14px;
+    text-align: center;
+    margin-top: -10px;
+}
+
+/* Caixa de texto com rolagem para os termos */
+.terms-content {
+    background-color: #162a45;
+    height: 250px;
+    overflow-y: auto;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #2d4464;
+}
+
+.terms-content h3 {
+    font-family: "Outfit", sans-serif;
+    color: #00d4ff; /* Azul destaque */
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.terms-content p {
+    font-family: "Sora", sans-serif;
+    color: #cbd5e1;
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+/* Personalização da barra de rolagem */
+.terms-content::-webkit-scrollbar { width: 6px; }
+.terms-content::-webkit-scrollbar-track { background: transparent; }
+.terms-content::-webkit-scrollbar-thumb { background: #2d4464; border-radius: 10px; }
+
+/* Checkbox e Botões */
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.btn-primary {
+    background-color: #10b981; /* Verde esmeralda */
+    color: #021124;
+    padding: 12px 25px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: "Sora", sans-serif;
+    transition: 0.3s ease;
+}
+
+.btn-primary:disabled {
+    background-color: #2d4464;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #34d399;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: white;
+    padding: 12px 25px;
+    border-radius: 8px;
+    border: 1px solid #2d4464;
+    text-decoration: none;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}

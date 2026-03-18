@@ -25,17 +25,57 @@
     <link rel="stylesheet" href="serviceterm.css">
 </head>
 <body>
-      <header>
+    <header>
         <section class="side-left">
             <a href="index.html"><img src="assets/Acrônimo SIP iluminado em azul.png" alt="Logo"></a>
             <span>Sistema Integrado de Portfolio</span>
         </section>
         <section class="side-right">
-            <a href="Login.html">Entrar</a>
-            <a href="">Cadastrar</a>
+            
         </section>
-        <nav class="menu-mobile">
-        </nav>
     </header>
+
+    <main class="terms-container">
+        <div class="terms-card">
+            <h1>Termos de Uso e Privacidade</h1>
+            <p class="subtitle">Leia atentamente antes de prosseguir com o seu cadastro no SIP.</p>
+            
+            <div class="terms-content">
+                <h3>1. Objetivo do Sistema</h3>
+                <p>O SIP (Sistema Integrado de Portfólio) é uma plataforma para visualização de projetos e solicitação de orçamentos de desenvolvimento web.</p>
+                
+                <h3>2. Coleta de Dados</h3>
+                <p>Ao se cadastrar, coletamos seu nome e e-mail para fins de autenticação e comunicação sobre seus pedidos de orçamento. Seus dados são armazenados de forma criptografada em nosso banco de dados MySQL.</p>
+                
+                <h3>3. Solicitação de Orçamentos</h3>
+                <p>O envio de um formulário não garante o fechamento do contrato. Cada pedido passará por análise de viabilidade técnica pelo administrador.</p>
+                
+                <h3>4. Segurança</h3>
+                <p>Comprometemo-nos a utilizar Middlewares de segurança para garantir que apenas você tenha acesso aos seus pedidos e dados pessoais.</p>
+            </div>
+
+            <form class="terms-footer">
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="accept-terms">
+                    <span class="checkmark"></span>
+                    Eu li e concordo com os termos de uso.
+                </label>
+                
+                <div class="action-buttons">
+                        
+                    <a href="#"><button type="submit" class="btn-primary" id="btn-continue" disabled>Continuar para Cadastro</button></a>
+                    
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        const checkbox = document.getElementById('accept-terms');
+        const btn = document.getElementById('btn-continue');
+        checkbox.addEventListener('change', () => {
+            btn.disabled = !checkbox.checked;
+        });
+    </script>
 </body>
 </html>
