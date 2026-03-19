@@ -38,7 +38,16 @@
             <a href="Login.html">Entrar</a>
             <a href="">Cadastrar</a>
         </section>
-        <nav class="menu-mobile">
+        <div class="nav-celular">
+            <div class="hamburger" id="btn-menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        <nav class="menu-mobile" id="menu-mobile">
+            <a href="Login.html">Entrar</a>
+            <a href="#">Cadastrar</a>
         </nav>
     </header>
     <main>
@@ -53,5 +62,23 @@
             <img src="assets/mainImage.png" alt="">
         </figure>
     </main>
+    <script>
+        const btn = document.getElementById("btn-menu");
+        const menu = document.getElementById("menu-mobile");
+
+        btn.addEventListener("click", () => {
+            btn.classList.toggle("ativo");
+            menu.classList.toggle("ativo");
+        });
+
+        // fechar ao clicar fora
+        document.addEventListener("click", (e) => {
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.remove("ativo");
+                btn.classList.remove("ativo");
+            }
+        });
+    </script>
 </body>
+
 </html>
