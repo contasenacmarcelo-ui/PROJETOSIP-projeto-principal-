@@ -33,27 +33,35 @@
             </a> <span>Sistema Integrado de Portfolio</span>
         </section>
         <section class="side-right">
-        
+
         </section>
         <nav class="nav-celular">
             <i class="bi bi-list"></i>
         </nav>
     </header>
     <main class="card-container">
-       <nav>
-        <h1 class="title">Acesse sua conta</h1>
-        <section class="label-01">
-            <p class="E-mail">E-mail</p>
-            <input class="input-E-mail" placeholder="E-mail" type="text">
-        </section>
-        <section class="label-02">
-            <p class="senha">Senha</p>
-            <input class="input-senha" placeholder="Senha" type="text">
-        </section>
-        <a href="cliente.html"><button class="btn-Entrar">ENTRAR</button></a>
-        
-        
-    <p class="txt2">Não tem conta? <a  class="Cadastre-se-txt" href="cadastro.html">Cadastre-se</a></p>
+        <nav>
+            <h1 class="title">Acesse sua conta</h1>
+            <section class="label-01">
+                <p class="E-mail">E-mail</p>
+                <input class="input-E-mail" placeholder="E-mail" type="text">
+                <span class="erro-email"></span>
+            </section>
+            <section class="label-02">
+                <p class="senha">Senha</p>
+
+                <div class="senha-box">
+                    <input class="input-senha" placeholder="Senha" type="password">
+                    <i class="bi bi-eye" id="toggleSenha"></i>
+                </div>
+
+                <span class="erro-senha"></span>
+            </section>
+            <a href="cliente.html"><button class="btn-Entrar">ENTRAR</button></a>
+
+
+            <p class="txt2">Não tem conta? <a class="Cadastre-se-txt" href="cadastro.html">Cadastre-se</a></p>
+            <script src="../js/login.js"></script>
         </nav>
     </main>
 </body>

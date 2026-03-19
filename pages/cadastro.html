@@ -49,19 +49,30 @@
             <section class="label-01">
                 <p class="E-mail">E-mail</p>
                 <input class="input-E-mail" placeholder="E-mail" type="text">
+                <span class="erro-email"></span>
             </section>
             <section class="label-02">
                 <p class="senha">Senha</p>
-                <input class="input-senha" placeholder="Senha" type="text">
+                <input class="input-senha" placeholder="Senha" type="password">
+                <span class="erro-senha"></span>
+                <span class="forca-senha"></span>
             </section>
-            <div>
+            <section class="label-02">
+                <p class="senha">Confirmar Senha</p>
+                <input class="input-confirmar" placeholder="Confirmar senha" type="password">
+                <span class="erro-confirmar"></span>
+            </section>
+            <div class="termos-container">
                 <input type="checkbox" name="checkbox" id="checkbox">
                 <p>Aceito os <a href="serviceterm.html" class="checkboxA">termos de serviço.</a></p>
             </div>
+            <span class="erro-termos"></span>
             <button class="btn-Entrar">CADASTRE-SE</button>
             <p class="txt2">Tem uma conta? <a class="Cadastre-se-txt" href="login.html">Entre</a></p>
         </nav>
     </main>
+
+    <script src="../js/cadastro.js"></script>
 </body>
 
 </html>

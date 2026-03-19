@@ -171,3 +171,46 @@ input:focus {
     text-decoration: underline;
     transform: scale(1.2);
 }
+.senha-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.senha-box input {
+    width: 100%;
+    padding-right: 40px;
+}
+
+#toggleSenha {
+    position: absolute;
+    right: 12px;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+#toggleSenha:hover {
+    color: #00d4ff;
+}
+.erro-email,
+.erro-senha {
+    color: #ef4444 !important; /* 🔥 força vermelho */
+    font-size: 12px;
+    font-family: "Sora", sans-serif;
+    margin-top: 5px;
+    display: block;
+    animation: aparecer 0.3s ease;
+1
+
+@keyframes aparecer {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+}

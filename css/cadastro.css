@@ -186,3 +186,29 @@ div{
 .checkboxA{
     color: rgb(143, 143, 143);
 }
+.erro-email,
+.erro-senha,
+.erro-confirmar {
+    color: #ef4444;
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+.forca-senha {
+    font-size: 12px;
+    margin-left: 5px;
+}
+.erro-termos {
+    color: #ef4444;
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+.termos-container.erro {
+    outline: 1px solid #ef4444;
+    border-radius: 6px;
+    padding: 5px;
+}
+.termos-container {
+    cursor: pointer;
+}
