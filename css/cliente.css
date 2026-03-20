@@ -37,14 +37,12 @@ header .side-left img {
     align-items: center;
     grid-template-columns: auto 1fr;
     gap: 20px;
-    color: white;
-    font-size: 25px;
 }
 
 .side-right a {
     font-family: "Readex Pro", sans-serif;
     color: white;
-
+    font-size: 15px;
     text-decoration: none;
 }
 
@@ -343,4 +341,22 @@ button:hover {
         margin: 0 auto;
     }
 
+}
+
+@media (max-width: 1200px) {
+    .side-right {
+        display: none;
+    }
+
+    .nav-celular {
+        display: flex;
+    }
+
+    .nav-celular .bi-list {
+        font-size: 40px;
+        cursor: pointer;
+        color: white;
+        display: flex;
+        align-items: center;
+    }
 }
