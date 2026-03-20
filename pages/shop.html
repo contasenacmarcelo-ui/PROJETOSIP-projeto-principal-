@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
 
@@ -10,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@160..700&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,6 +26,7 @@
     <link rel="stylesheet" href="../css/shop.css">
     <title>Consultoria</title>
 </head>
+
 <body>
     <header>
         <section class="side-left">
@@ -47,32 +49,87 @@
             <a href="#">Cadastrar</a>
         </nav>
     </header>
+
     <main>
         <p class="paragrafo">
             <b>Seus Projetos,</b>
             Nossa Experiência.
         </p>
+
         <div class="line1"></div>
+
         <section class="squares-booking">
-            
+            <div class="card">
+                <img src="../assets/images/projeto1.png">
+                <span>App de E-Commerce</span>
+            </div>
+
+            <div class="card">
+                <img src="../assets/images/projeto2.png">
+                <span>Dashboard Financeiro</span>
+            </div>
+
+            <div class="card">
+                <img src="../assets/images/projeto3.png">
+                <span>Landing Page Criativa</span>
+            </div>
+
+            <div class="card">
+                <img src="../assets/images/projeto4.png">
+                <span>Sistema de Gestão</span>
+            </div>
+
+            <div class="card">
+                <img src="../assets/images/projeto5.png">
+                <span>Protótipo Mobile</span>
+            </div>
+
+            <div class="card">
+                <img src="../assets/images/projeto6.png">
+                <span>Website Corporativo</span>
+            </div>
         </section>
+
+        <!-- BOTÃO ABRIR MODAL -->
+        <div class="orcamento-container">
+            <button class="btn-orcamento" id="abrirModal">Solicitar Orçamento</button>
+        </div>
     </main>
-    <script>
-        const btn = document.getElementById("btn-menu");
-        const menu = document.getElementById("menu-mobile");
 
-        btn.addEventListener("click", () => {
-            btn.classList.toggle("ativo");
-            menu.classList.toggle("ativo");
-        });
+    <!-- MODAL -->
+    <div class="modal" id="modalOrcamento">
+        <div class="modal-content">
+            <div class="modal-erro-geral"></div>
+            <h2 class="modal-title">SIP Novo Pedido</h2>
 
-        // fechar ao clicar fora
-        document.addEventListener("click", (e) => {
-            if (!menu.contains(e.target) && !btn.contains(e.target)) {
-                menu.classList.remove("ativo");
-                btn.classList.remove("ativo");
-            }
-        });
-    </script>
+            <input type="text" placeholder="Título do Projeto" class="modal-input" id="titulo">
+            <span class="erro-modal" id="erro-titulo"></span>
+
+            <textarea placeholder="Descrição Detalhada da Ideia" class="modal-textarea" id="descricao"></textarea>
+            <span class="erro-modal" id="erro-descricao"></span>
+
+            <select class="modal-input" id="tipo">
+                <option value="">Selecione o tipo de projeto</option>
+                <option>App de E-commerce</option>
+                <option>Dashboard Financeiro</option>
+                <option>Landing Page Criativa</option>
+                <option>Sistema de Gestão</option>
+                <option>Protótipo Mobile</option>
+                <option>Website Corporativo</option>
+            </select>
+            <span class="erro-modal" id="erro-tipo"></span>
+
+            <input type="date" class="modal-input" id="prazo">
+            <span class="erro-modal" id="erro-prazo"></span>
+
+            <div class="modal-buttons">
+                <button class="btn-enviar" id="btnEnviar">Enviar Solicitação</button>
+                <button class="btn-fechar" id="fecharModal">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="../js/shop.js"></script>
 </body>
-</html>
+</html> 
