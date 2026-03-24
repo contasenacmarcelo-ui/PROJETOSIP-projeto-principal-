@@ -54,10 +54,9 @@ header .side-left img {
 /* ------------------------------------------ Menu mobile -------------------------------------------------------------------------------------- */
 
 .menu-mobile {
-    position: fixed; /* melhor que absolute pra menu */
+    position: absolute;
     top: 80px;
     right: 0;
-    z-index: 9999;
     background-color: #021124;
     width: 200px;
     height: 100%;
@@ -125,7 +124,6 @@ header .side-left img {
 .nav-celular {
     display: none;
 }
-
 
 /* ----------Main------------- */
 
@@ -283,4 +281,22 @@ input:focus {
 }
 .termos-container {
     cursor: pointer;
+}
+
+@media (max-width: 1200px) {
+    .side-right {
+        display: none;
+    }
+
+    .nav-celular {
+        display: flex;
+    }
+
+    .nav-celular .bi-list {
+        font-size: 40px;
+        cursor: pointer;
+        color: white;
+        display: flex;
+        align-items: center;
+    }
 }

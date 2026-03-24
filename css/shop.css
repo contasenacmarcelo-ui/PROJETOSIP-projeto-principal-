@@ -130,7 +130,7 @@ header .side-left img {
 main {
     display: grid;
     align-items: center;
-    padding: 3%;
+    padding: 2%;
 
     color: white;
 }
@@ -151,7 +151,7 @@ main {
 /* GRID DOS CARDS */
 .squares-booking {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 25px;
     margin-top: 30px;
 }
@@ -161,6 +161,11 @@ main {
     background: linear-gradient(145deg, #0b1e33, #0f2a47);
     border-radius: 15px;
     padding: 10px;
+    display: flex;
+    justify-content: center;
+    padding: 15px 15px 15px 15px;
+    width: 600px;
+    height: 350px;
     cursor: pointer;
     transition: 0.3s;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
@@ -170,8 +175,8 @@ main {
 
 /* IMAGEM */
 .card img {
+    object-fit: cover;
     width: 100%;
-    border-radius: 10px;
 }
 
 /* TEXTO */
@@ -341,12 +346,17 @@ main {
     }
 }
 
+@media (max-width: 1110px) {
 
-@media (max-width: 1110px) {}
+}
 
-@media (max-width: 1020px) {}
+@media (max-width: 1020px) {
 
-@media (max-width: 860px) {}
+}
+
+@media (max-width: 860px) {
+
+}
 
 @media (max-width: 768px) {
     .squares-booking {

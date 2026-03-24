@@ -125,7 +125,7 @@ header .side-left img {
     display: none;
 }
 
-/* ------------------------------------------ Tabela -------------------------------------------------------------------------------------- */
+/* ------------------------------------------ Main -------------------------------------------------------------------------------------- */
 
 .table-container {
     width: 100%;
@@ -198,28 +198,150 @@ tr:hover {
     transform: scale(1.05);
 }
 
-/* ------------------------------------------ Paginação -------------------------------------------------------------------------------------- */
-
-.pagination{
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 10px;
+.divbotaun{
+    padding-left: 2%;
 }
 
-.pagination button{
-    padding: 8px 12px;
-    border: none;
-    background-color: #0b1e33;
+/* botão */
+.btn-add {
+    background: #2563eb;
     color: white;
-    border-radius: 6px;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
     cursor: pointer;
+    font-weight: 600;
+    transition: 0.3s;
 }
 
-.pagination button.ativo{
-    background-color: #2563eb;
+.btn-add:hover {
+    background: #1e40af;
 }
 
+/* FUNDO DO MODAL */
+.modal {
+    display: none;
+    font-family: "Sora", sans-serif;
+    position: fixed;
+    z-index: 999;
+    inset: 0;
+    background: rgba(2, 17, 36, 0.8);
+    backdrop-filter: blur(6px);
+    animation: fadeIn 0.3s ease;
+}
+
+/* CAIXA DO MODAL */
+.modal-content {
+    background: #021124;
+    padding: 28px;
+    border-radius: 16px;
+    width: 340px;
+    margin: auto;
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
+    
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+
+    box-shadow: 
+        0 10px 30px rgba(0,0,0,0.6),
+        0 0 0 1px rgba(255,255,255,0.05);
+
+    animation: slideUp 0.35s ease;
+}
+
+/* TÍTULO */
+.modal-content h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+/* TEXTO AUXILIAR */
+.modal-content p {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: -5px;
+}
+
+/* INPUTS */
+.modal-content input,
+.modal-content select {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #1e293b;
+    background: #0b1f3a;
+    color: #e2e8f0;
+    font-size: 14px;
+    outline: none;
+    transition: 0.2s;
+}
+
+/* PLACEHOLDER */
+.modal-content input::placeholder {
+    color: #64748b;
+}
+
+/* FOCUS */
+.modal-content input:focus,
+.modal-content select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* BOTÃO */
+.modal-content button {
+    margin-top: 5px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.25s;
+}
+
+.modal-content button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3);
+}
+
+/* BOTÃO FECHAR */
+.fechar {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    font-size: 18px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.fechar:hover {
+    color: #ef4444;
+    transform: scale(1.2);
+}
+
+/* ANIMAÇÕES */
+@keyframes fadeIn {
+    from { opacity: 0 }
+    to { opacity: 1 }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(-50%);
+    }
+}
 /* ------------------------------------------ Media -------------------------------------------------------------------------------------- */
 
 @media (max-width: 1200px) {

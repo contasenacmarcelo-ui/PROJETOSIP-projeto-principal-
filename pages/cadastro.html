@@ -1,5 +1,5 @@
     <!DOCTYPE html>
-    <html lang="en">
+    <html lang="pt-br">
 
     <head>
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,14 +29,23 @@
 <body>
     <header>
         <section class="side-left">
-            <a href="index.html"><img src="../assets/images/acronimo_sip_iluminado_em_azul.png" alt="Logo">
-            </a> <span>Sistema Integrado de Portfolio</span>
+            <a href="index.html"><img src="../assets/images/acronimo_sip_iluminado_em_azul.png" alt="Logo"></a>
+            <span>Sistema Integrado de Portfolio</span>
         </section>
-        <section class="side-right">
-
+            <section class="side-right">
+            <a href="login.html">Entrar</a>
+            <a href="cadastro.html">Cadastrar</a>
         </section>
-        <nav class="nav-celular">
-            <i class="bi bi-list"></i>
+        <div class="nav-celular">
+            <div class="hamburger" id="btn-menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        <nav class="menu-mobile" id="menu-mobile">
+            <a href="Login.html">Entrar</a>
+            <a href="cadastro.html">Cadastrar</a>
         </nav>
     </header>
     <main class="card-container">
@@ -73,6 +82,7 @@
     </main>
 
     <script src="../js/cadastro.js"></script>
+    <script src="../js/menu.js"></script>
 </body>
 
 </html>
