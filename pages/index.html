@@ -15,9 +15,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+    <link rel="shortcut icon" href="../assets/images/icone.png" type="image/x-icon">
     <link rel="stylesheet" href="../css/style.css">
     <title>SIP</title>
 </head>
@@ -28,7 +28,7 @@
             <a href="index.html"><img src="../assets/images/acronimo_sip_iluminado_em_azul.png" alt="Logo"></a>
             <span>Sistema Integrado de Portfolio</span>
         </section>
-            <section class="side-right">
+        <section class="side-right">
             <a href="login.html">Entrar</a>
             <a href="cadastro.html">Cadastrar</a>
         </section>
@@ -46,7 +46,7 @@
     </header>
     <main>
         <section class="main-left">
-            <h1>Transforme suas ideias em sites!</h1>
+            <h1 id="titulo"></h1>
             <p>Dê vida à sua criatividade com soluções digitais sob medida. Desenvolvemos sites únicos, modernos e
                 estratégicos, pensados para destacar sua marca e superar todas as suas expectativas — do design à
                 performance.</p>
@@ -56,23 +56,7 @@
             <img src="../assets/images/mainimage.png" alt="">
         </figure>
     </main>
-    <script>
-        const btn = document.getElementById("btn-menu");
-        const menu = document.getElementById("menu-mobile");
-
-        btn.addEventListener("click", () => {
-            btn.classList.toggle("ativo");
-            menu.classList.toggle("ativo");
-        });
-
-        // fechar ao clicar fora
-        document.addEventListener("click", (e) => {
-            if (!menu.contains(e.target) && !btn.contains(e.target)) {
-                menu.classList.remove("ativo");
-                btn.classList.remove("ativo");
-            }
-        });
-    </script>
+    <script src="../js/home.js"></script>
 </body>
 
 </html>

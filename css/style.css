@@ -5,6 +5,7 @@
 }
 
 body {
+    overflow-y: hidden  ;
     background-color: #021124;
 }
 
