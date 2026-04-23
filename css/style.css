@@ -155,7 +155,7 @@ main p {
     height: auto;
 }
 
-button {
+.button {
     background-color: rgba(0, 156, 134, 1);
     border-radius: 15px;
     border: none;
@@ -168,7 +168,10 @@ button {
     letter-spacing: 1.5px;
 }
 
-.aButton {
+.button:hover{
+    transition: ease 0.3s;
+    box-shadow: 0px 0px 13px 0px rgb(0, 204, 177);
+    background: linear-gradient(55deg, rgba(0, 156, 134, 1), rgb(0, 204, 177));
     cursor: pointer;
 }
 
@@ -457,7 +460,7 @@ button {
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 930px) {
     .footer {
         padding: 30px 4%;
         margin-top: 50px;
