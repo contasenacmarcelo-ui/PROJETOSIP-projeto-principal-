@@ -87,16 +87,15 @@ if (formContatoInline) {
         // Salvar no localStorage
         salvarContato(contato);
 
-        // Mostrar sucesso
-        formContatoInline.style.display = 'none';
-        sucessoFormInline.style.display = 'block';
+        // Mostrar toast de sucesso
+        if (typeof toastSucesso === 'function') {
+            toastSucesso('Mensagem enviada com sucesso! Entraremos em contato em breve.', 4000);
+        }
 
         console.log('Contato salvo no localStorage:', contato);
 
-        // Restaurar formulário após 4 segundos
-        setTimeout(() => {
-            limparFormInline();
-        }, 4000);
+        // Limpar formulário
+        limparFormInline();
     });
 }
 

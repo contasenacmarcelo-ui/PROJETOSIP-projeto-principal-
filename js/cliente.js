@@ -242,13 +242,14 @@ if (formNovoPedido) {
         salvarOrcamento(orcamento);
         console.log('Pedido salvo:', orcamento);
 
-        formNovoPedido.style.display = 'none';
-        sucessoPedido.style.display = 'block';
+        if (typeof toastSucesso === 'function') {
+            toastSucesso('Pedido enviado com sucesso!');
+        }
 
         setTimeout(() => {
             modalNovoPedido.classList.remove('ativo');
             limparFormNovoPedido();
-        }, 2000);
+        }, 1500);
     });
 }
 
@@ -333,13 +334,14 @@ if (formSuporte) {
         salvarSuporte(suporte);
         console.log('Suporte salvo:', suporte);
 
-        formSuporte.style.display = 'none';
-        sucessoSuporte.style.display = 'block';
+        if (typeof toastSucesso === 'function') {
+            toastSucesso('Chamado aberto com sucesso! Entraremos em contato em breve.');
+        }
 
         setTimeout(() => {
             modalSuporte.classList.remove('ativo');
             limparFormSuporte();
-        }, 2000);
+        }, 1500);
     });
 }
 

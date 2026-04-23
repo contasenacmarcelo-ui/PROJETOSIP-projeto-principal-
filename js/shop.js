@@ -104,8 +104,9 @@ btnEnviar.addEventListener("click", () => {
 
     // ERRO GERAL BONITO
     if (!valido) {
-        erroGeral.textContent = "Preencha corretamente os campos!";
-        erroGeral.classList.add("ativo");
+        if (typeof toastErro === 'function') {
+            toastErro('Preencha corretamente os campos!');
+        }
         return;
     }
 
@@ -125,9 +126,9 @@ btnEnviar.addEventListener("click", () => {
     console.log('Orçamento salvo no localStorage:', orcamento);
 
     // SUCESSO
-    erroGeral.textContent = "Solicitação enviada com sucesso!";
-    erroGeral.style.background = "#22c55e";
-    erroGeral.classList.add("ativo");
+    if (typeof toastSucesso === 'function') {
+        toastSucesso('Solicitação enviada com sucesso!');
+    }
 
     setTimeout(() => {
         modal.classList.remove("ativo");
