@@ -255,4 +255,218 @@ button {
     }
 }
 
+/* ------------------------------------------ FOOTER -------------------------------------------------------------------------------------- */
+
+.footer {
+    background: linear-gradient(135deg, #001a4d 0%, #021124 50%, #001a33 100%);
+    color: white;
+    padding: 60px 5%;
+    margin-top: 80px;
+    border-top: 2px solid rgba(0, 156, 134, 0.3);
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    margin-bottom: 40px;
+}
+
+.footer-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Logo & Brand Section */
+.footer-brand {
+    gap: 20px;
+}
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.footer-logo img {
+    width: 60px;
+    height: auto;
+}
+
+.footer-logo h3 {
+    font-family: "Outfit", sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: rgba(0, 156, 134, 1);
+    margin: 0;
+}
+
+.footer-description {
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+}
+
+/* Social Media Icons */
+.footer-social {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.footer-social a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 45px;
+    height: 45px;
+    background: rgba(0, 156, 134, 0.15);
+    border: 2px solid rgba(0, 156, 134, 0.3);
+    border-radius: 50%;
+    color: rgba(0, 156, 134, 1);
+    font-size: 18px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.footer-social a:hover {
+    background: rgba(0, 156, 134, 0.3);
+    border-color: rgba(0, 156, 134, 1);
+    transform: translateY(-5px);
+}
+
+/* Footer Titles */
+.footer-title {
+    font-family: "Outfit", sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0;
+}
+
+/* Footer Links */
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.footer-links li a {
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.footer-links li a:hover {
+    color: rgba(0, 156, 134, 1);
+    transform: translateX(5px);
+}
+
+/* Footer Divider */
+.footer-divider {
+    height: 2px;
+    background: linear-gradient(to right, transparent, rgba(0, 156, 134, 0.3), transparent);
+    margin: 0;
+}
+
+/* Footer Bottom */
+.footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding-top: 30px;
+    font-family: "Sora", sans-serif;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.footer-bottom p {
+    margin: 0;
+}
+
+.footer-made {
+    text-align: right;
+}
+
+.heart {
+    display: inline-block;
+    color: #ff4757;
+    animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+    0%, 100% {
+        transform: scale(1);
+    }
+    25% {
+        transform: scale(1.1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+/* Footer Responsivo */
+@media (max-width: 768px) {
+    .footer {
+        padding: 40px 5%;
+        margin-top: 60px;
+    }
+
+    .footer-content {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .footer-made {
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer {
+        padding: 30px 4%;
+        margin-top: 50px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 25px;
+    }
+
+    .footer-social {
+        justify-content: center;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+        font-size: 12px;
+    }
+
+    .footer-logo h3 {
+        font-size: 20px;
+    }
+}
+
 /* rgb(141, 245, 255); */

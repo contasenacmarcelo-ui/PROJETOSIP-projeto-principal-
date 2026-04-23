@@ -1,0 +1,412 @@
+/* ------------------------------------------ FOOTER -------------------------------------------------------------------------------------- */
+
+.footer {
+    background: linear-gradient(135deg, #001a4d 0%, #021124 50%, #001a33 100%);
+    color: white;
+    padding: 60px 5%;
+    margin-top: 80px;
+    border-top: 2px solid rgba(0, 156, 134, 0.3);
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    margin-bottom: 40px;
+}
+
+.footer-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Logo & Brand Section */
+.footer-brand {
+    gap: 20px;
+}
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.footer-logo img {
+    width: 60px;
+    height: auto;
+}
+
+.footer-logo h3 {
+    font-family: "Outfit", sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: rgba(0, 156, 134, 1);
+    margin: 0;
+}
+
+.footer-description {
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+}
+
+/* Social Media Icons */
+.footer-social {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.footer-social a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 45px;
+    height: 45px;
+    background: rgba(0, 156, 134, 0.15);
+    border: 2px solid rgba(0, 156, 134, 0.3);
+    border-radius: 50%;
+    color: rgba(0, 156, 134, 1);
+    font-size: 18px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.footer-social a:hover {
+    background: rgba(0, 156, 134, 0.3);
+    border-color: rgba(0, 156, 134, 1);
+    transform: translateY(-5px);
+}
+
+/* Footer Titles */
+.footer-title {
+    font-family: "Outfit", sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0;
+}
+
+/* Footer Links */
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.footer-links li a {
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-block;
+}
+
+.footer-links li a:hover {
+    color: rgba(0, 156, 134, 1);
+    transform: translateX(5px);
+}
+
+/* Footer Divider */
+.footer-divider {
+    height: 2px;
+    background: linear-gradient(to right, transparent, rgba(0, 156, 134, 0.3), transparent);
+    margin: 0;
+}
+
+/* Footer Bottom */
+.footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding-top: 30px;
+    font-family: "Sora", sans-serif;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.footer-bottom p {
+    margin: 0;
+}
+
+.footer-made {
+    text-align: right;
+}
+
+.heart {
+    display: inline-block;
+    color: #ff4757;
+    animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+    0%, 100% {
+        transform: scale(1);
+    }
+    25% {
+        transform: scale(1.1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+}
+
+/* Footer Responsivo */
+@media (max-width: 768px) {
+    .footer {
+        padding: 40px 5%;
+        margin-top: 60px;
+    }
+
+    .footer-content {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 30px;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .footer-made {
+        text-align: center;
+    }
+
+    .form-contato-inline input,
+    .form-contato-inline textarea {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .footer {
+        padding: 30px 4%;
+        margin-top: 50px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 25px;
+    }
+
+    .footer-social {
+        justify-content: center;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+        font-size: 12px;
+    }
+
+    .footer-logo h3 {
+        font-size: 20px;
+    }
+
+    .form-contato-inline input,
+    .form-contato-inline textarea {
+        padding: 9px 10px;
+        font-size: 14px;
+    }
+
+    .btn-submit-footer {
+        padding: 9px 14px;
+        font-size: 12px;
+    }
+
+    .footer-form {
+        padding: 15px;
+    }
+}
+
+
+/* ------------------------------------------ MODAL CONTATO ----------------------- */
+
+.modal-contato {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-contato.ativo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-contato-content {
+    background: linear-gradient(135deg, #001a4d 0%, #021124 100%);
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 156, 134, 0.3);
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+    border: 2px solid rgba(0, 156, 134, 0.3);
+    animation: slideUp 0.3s ease;
+}
+
+.modal-contato-close {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-contato-close:hover {
+    color: rgba(0, 156, 134, 1);
+    transform: rotate(90deg);
+}
+
+.modal-contato-content h2 {
+    color: white;
+    font-family: "Outfit", sans-serif;
+    font-size: 24px;
+    margin: 0 0 25px 0;
+    text-align: center;
+}
+
+.form-contato {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-contato input,
+.form-contato textarea {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(0, 156, 134, 0.3);
+    color: white;
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-contato input::placeholder,
+.form-contato textarea::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.form-contato input:focus,
+.form-contato textarea:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(0, 156, 134, 1);
+    box-shadow: 0 0 10px rgba(0, 156, 134, 0.3);
+}
+
+.form-contato textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.erro-contato {
+    color: #ff4757;
+    font-size: 12px;
+    font-family: "Sora", sans-serif;
+    display: none;
+}
+
+.erro-contato.show {
+    display: block;
+}
+
+.btn-enviar-contato {
+    background: linear-gradient(135deg, rgba(0, 156, 134, 1) 0%, rgba(0, 120, 100, 1) 100%);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-family: "Outfit", sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.btn-enviar-contato:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0, 156, 134, 0.4);
+}
+
+.btn-enviar-contato:active {
+    transform: translateY(0);
+}
+
+.sucesso-contato {
+    background: rgba(46, 204, 113, 0.2);
+    border: 2px solid #2ecc71;
+    color: #2ecc71;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    font-family: "Sora", sans-serif;
+    font-size: 14px;
+    margin-top: 20px;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 600px) {
+    .modal-contato-content {
+        padding: 30px 20px;
+        max-width: 100%;
+        margin: 20px;
+    }
+
+    .modal-contato-content h2 {
+        font-size: 20px;
+    }
+
+    .form-contato input,
+    .form-contato textarea {
+        padding: 10px 12px;
+        font-size: 16px;
+    }
+}
