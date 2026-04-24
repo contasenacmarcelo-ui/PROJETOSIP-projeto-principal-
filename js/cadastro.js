@@ -202,17 +202,8 @@ function limparErros() {
 }
 
 
-// ================= CLICK NO TEXTO DOS TERMOS =================
-if (termosContainer) {
-    termosContainer.addEventListener("click", () => {
-        checkbox.checked = !checkbox.checked;
-
-        if (checkbox.checked) {
-            erroTermos.textContent = "";
-            termosContainer.classList.remove("erro");
-        }
-    });
-}
+// O label nativo do HTML já cuida de marcar/desmarcar o checkbox
+// ao clicar no texto. O listener de 'change' acima remove o erro.
 
 const toggleSenha = document.querySelector("#toggleSenha");
 const campoSenha = document.querySelector(".input-senha");
