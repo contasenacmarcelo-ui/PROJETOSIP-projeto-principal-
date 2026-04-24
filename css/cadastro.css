@@ -305,6 +305,9 @@ input:focus {
     padding: 5px;
 }
 
+#checkbox{
+    cursor: pointer;
+}
 /* LOADING STATE */
 .skeleton {
     background: linear-gradient(90deg, #162a45 25%, #1c3557 50%, #162a45 75%);
