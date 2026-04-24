@@ -395,6 +395,151 @@ tr:hover {
     display: block;
 }
 
+/* ------------------------------------------ Botão Ver (Detalhes) -------------------------------------------------------------------------------------- */
+.btn-view {
+    background: transparent;
+    border: 1px solid #38bdf8;
+    color: #38bdf8;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.2s ease;
+    margin-right: 6px;
+}
+
+.btn-view:hover {
+    background: #38bdf8;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* ------------------------------------------ Modal Grande (Detalhes) -------------------------------------------------------------------------------------- */
+.modal-lg {
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    overflow-y: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 32px;
+}
+
+.modal-lg h2 {
+    margin-bottom: 10px;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 10px;
+}
+
+.detalhes-secao {
+    margin-top: 18px;
+}
+
+.detalhes-secao h3 {
+    font-family: "Outfit", sans-serif;
+    font-size: 16px;
+    color: #e2e8f0;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.detalhes-secao p {
+    color: #94a3b8;
+    font-size: 13px;
+    margin: 4px 0;
+}
+
+.detalhes-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.detalhe-card {
+    background: #0b1f3a;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.detalhe-card strong {
+    color: #e2e8f0;
+    font-size: 14px;
+}
+
+.detalhe-card p {
+    color: #94a3b8;
+    font-size: 12px;
+    margin: 0;
+}
+
+.detalhe-tag {
+    display: inline-block;
+    background: rgba(0, 156, 134, 0.15);
+    color: #00cc99;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    width: fit-content;
+    margin-top: 2px;
+}
+
+.detalhe-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.detalhe-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.detalhe-status {
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.detalhe-status.pendente {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.detalhe-status.aberto {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+.detalhe-status.fechado {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.detalhe-status.cancelado {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.sem-dados {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 13px;
+    text-align: center;
+    padding: 12px 0;
+}
+
 /* ------------------------------------------ Media -------------------------------------------------------------------------------------- */
 
 @media (max-width: 1200px) {
@@ -412,5 +557,10 @@ tr:hover {
         color: white;
         display: flex;
         align-items: center;
+    }
+
+    .modal-lg {
+        width: 95%;
+        padding: 20px;
     }
 }

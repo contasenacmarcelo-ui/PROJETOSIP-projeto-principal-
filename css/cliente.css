@@ -558,6 +558,11 @@ hr {
     box-shadow: none;
 }
 
+#perfil-email{
+    letter-spacing: 0.5px;
+    word-break: break-word;
+}
+
 @media (max-width: 1024px) {
 
     .card-container {

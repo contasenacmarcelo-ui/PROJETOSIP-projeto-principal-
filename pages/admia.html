@@ -23,16 +23,17 @@
             <a href="login.html">Entrar</a>
             <a href="cadastro.html">Cadastrar</a>
         </section>
-        <div class="nav-celular">
+    <div class="nav-celular">
             <div class="hamburger" id="btn-menu">
                 <span></span>
                 <span></span>
                 <span></span>
             </div>
-        <nav class="menu-mobile" id="menu-mobile">
-            <a href="login.html">Entrar</a>
-            <a href="cadastro.html">Cadastrar</a>
-        </nav>
+            <nav class="menu-mobile" id="menu-mobile">
+                <a href="login.html">Entrar</a>
+                <a href="cadastro.html">Cadastrar</a>
+            </nav>
+        </div>
     </header>
     <main>
         <div class="divbotaun">
@@ -47,6 +48,8 @@
                 <h2>Novo Usuário</h2>
 
                 <input type="text" id="nome" placeholder="Nome">
+                <input type="email" id="email" placeholder="E-mail">
+                <input type="text" id="telefone" placeholder="Telefone">
 
                 <select id="status">
                     <option value="Ativo">Ativo</option>
@@ -56,12 +59,46 @@
 
                 <button onclick="adicionarUsuario()">Adicionar</button>
             </div>
+        </div>
+
+        <!-- MODAL DETALHES DO USUÁRIO -->
+        <div class="modal" id="modal-detalhes">
+            <div class="modal-content modal-lg">
+                <span class="fechar" onclick="fecharModalDetalhes()">&times;</span>
+                <h2>Detalhes do Usuário</h2>
+
+                <div class="detalhes-secao">
+                    <h3><i class="bi bi-person"></i> Dados Pessoais</h3>
+                    <p><strong>Nome:</strong> <span id="det-nome">—</span></p>
+                    <p><strong>E-mail:</strong> <span id="det-email">—</span></p>
+                    <p><strong>Telefone:</strong> <span id="det-telefone">—</span></p>
+                    <p><strong>Status:</strong> <span id="det-status">—</span></p>
+                </div>
+
+                <div class="detalhes-secao">
+                    <h3><i class="bi bi-clipboard-check"></i> Pedidos / Projetos</h3>
+                    <div id="det-pedidos" class="detalhes-lista">
+                        <p class="sem-dados">Nenhum pedido encontrado.</p>
+                    </div>
+                </div>
+
+                <div class="detalhes-secao">
+                    <h3><i class="bi bi-headset"></i> Chamados de Suporte</h3>
+                    <div id="det-suportes" class="detalhes-lista">
+                        <p class="sem-dados">Nenhum chamado encontrado.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Nome</th>
+                        <th>E-mail</th>
+                        <th>Telefone</th>
                         <th>Status</th>
                         <th></th> <!-- coluna ação -->
                     </tr>

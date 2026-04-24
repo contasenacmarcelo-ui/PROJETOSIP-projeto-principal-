@@ -357,6 +357,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!valido) return;
 
+            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+
             const orcamento = {
                 id: Date.now(),
                 titulo: titulo,
@@ -364,7 +366,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 tipo: tipo,
                 prazo: prazo,
                 dataEnvio: new Date().toLocaleString('pt-BR'),
-                status: 'Pendente'
+                status: 'Pendente',
+                userEmail: user.email || null
             };
 
             salvarOrcamento(orcamento);
@@ -452,12 +455,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!valido) return;
 
+            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+
             const suporte = {
                 id: Date.now(),
                 assunto: assunto,
                 mensagem: mensagem,
                 dataEnvio: new Date().toLocaleString('pt-BR'),
-                status: 'Aberto'
+                status: 'Aberto',
+                userEmail: user.email || null
             };
 
             salvarSuporte(suporte);
