@@ -1,7 +1,42 @@
-document.addEventListener('DOMContentLoaded', function () {
-    // ============================
-    // MENU MOBILE
-    // ============================
+const API_BASE = 'http://localhost:5000/api';
+let token = localStorage.getItem('access_token');
+let usuarioAtual = null;
+
+// Verificar autenticação ao carregar a página
+document.addEventListener('DOMContentLoaded', () => {
+    verificarAutenticacao();
+    initializeAdmin();
+});
+
+// Verificar se é admin
+async function verificarAutenticacao() {
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+            usuarioAtual = await response.json();
+            if (usuarioAtual.role !== 'admin') {
+                alert('Acesso negado! Apenas administradores.');
+                window.location.href = 'index.html';
+            }
+        } else {
+            localStorage.removeItem('access_token');
+            window.location.href = 'login.html';
+        }
+    } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
+    }
+}
+
+function initializeAdmin() {
+    // Menu mobile
     const btn = document.getElementById("btn-menu");
     const menu = document.getElementById("menu-mobile");
 
@@ -10,42 +45,46 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.classList.toggle("ativo");
             menu.classList.toggle("ativo");
         });
-
-        document.addEventListener("click", (e) => {
-            if (!menu.contains(e.target) && !btn.contains(e.target)) {
-                menu.classList.remove("ativo");
-                btn.classList.remove("ativo");
-            }
-        });
     }
 
-    // ============================
-    // MODAL NOVO USUÁRIO
-    // ============================
+    // Modais
+    setupModals();
+
+    // Carregar dados
+    carregarDashboard();
+    carregarClientes();
+
+    // Evento do botão de logout
+    const logoutBtn = document.querySelector('.logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+}
+
+function setupModals() {
     const modal = document.getElementById("modal");
+    const modalDetalhes = document.getElementById("modal-detalhes");
 
-    window.abrirModal = function () {
-        if (!modal) return;
-        modal.style.display = "block";
-
+    window.abrirModal = function() {
+        if (modal) modal.style.display = "block";
         setTimeout(() => {
             const nomeInput = document.getElementById("nome");
             if (nomeInput) nomeInput.focus();
         }, 100);
     };
 
-    window.fecharModal = function () {
-        if (!modal) return;
-        modal.style.display = "none";
+    window.fecharModal = function() {
+        if (modal) modal.style.display = "none";
     };
 
-    if (modal) {
-        window.addEventListener("click", (e) => {
-            if (e.target === modal) {
-                fecharModal();
-            }
-        });
-    }
+    window.fecharModalDetalhes = function() {
+        if (modalDetalhes) modalDetalhes.style.display = "none";
+    };
+
+    window.addEventListener("click", (e) => {
+        if (e.target === modal) fecharModal();
+        if (e.target === modalDetalhes) fecharModalDetalhes();
+    });
 
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
@@ -53,265 +92,293 @@ document.addEventListener('DOMContentLoaded', function () {
             fecharModalDetalhes();
         }
     });
+}
 
-    document.addEventListener("keydown", (e) => {
-        if (modal && modal.style.display === "block" && e.key === "Enter") {
-            e.preventDefault();
-            window.adicionarUsuario();
+// Carregar dashboard com estatísticas
+async function carregarDashboard() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/dashboard`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            atualizarDashboard(data);
         }
+    } catch (error) {
+        console.error('Erro ao carregar dashboard:', error);
+    }
+}
+
+// Atualizar elementos do dashboard
+function atualizarDashboard(data) {
+    // Atualizar cards
+    const updateElement = (id, value) => {
+        const elem = document.getElementById(id);
+        if (elem) elem.textContent = value;
+    };
+
+    updateElement('total-usuarios', data.total_usuarios);
+    updateElement('total-pedidos', data.total_pedidos);
+    updateElement('total-orcamentos', data.total_orcamentos);
+    updateElement('total-chamados', data.total_chamados);
+    updateElement('receita-total', `R$ ${data.receita_total.toFixed(2)}`);
+}
+
+// Carregar lista de clientes
+async function carregarClientes() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/clientes`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            exibirClientes(data.clientes);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+    }
+}
+
+// Exibir clientes na tabela
+function exibirClientes(clientes) {
+    const tbody = document.querySelector('table tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (clientes.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="8" style="text-align:center;padding:20px;">Nenhum cliente encontrado</td>';
+        tbody.appendChild(tr);
+        return;
+    }
+
+    clientes.forEach(cliente => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${cliente.id}</td>
+            <td>${cliente.nome}</td>
+            <td>${cliente.email}</td>
+            <td>${cliente.status}</td>
+            <td>${cliente.num_pedidos}</td>
+            <td>${cliente.num_chamados}</td>
+            <td>R$ ${cliente.valor_total_pedidos.toFixed(2)}</td>
+            <td>
+                <button onclick="verDetalhes(${cliente.id})" class="btn-detalhes" title="Ver Detalhes">
+                    <i class="bi bi-eye-fill"></i> Ver
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
     });
+}
 
-    // ============================
-    // MODAL DETALHES DO USUÁRIO
-    // ============================
-    const modalDetalhes = document.getElementById("modal-detalhes");
-
-    window.abrirModalDetalhes = function () {
-        if (!modalDetalhes) return;
-        modalDetalhes.style.display = "block";
-    };
-
-    window.fecharModalDetalhes = function () {
-        if (!modalDetalhes) return;
-        modalDetalhes.style.display = "none";
-    };
-
-    if (modalDetalhes) {
-        window.addEventListener("click", (e) => {
-            if (e.target === modalDetalhes) {
-                fecharModalDetalhes();
-            }
-        });
-    }
-
-    // ============================
-    // LOCAL STORAGE + TABELA
-    // ============================
-    const tabelaBody = document.getElementById("tabela-body");
-    const LS_KEY = "users";
-
-    function carregarDados() {
-        return JSON.parse(localStorage.getItem(LS_KEY)) || [];
-    }
-
-    function salvarDados(dados) {
-        localStorage.setItem(LS_KEY, JSON.stringify(dados));
-    }
-
-    function getOrcamentos() {
-        const dados = localStorage.getItem('sip_orcamentos');
-        return dados ? JSON.parse(dados) : [];
-    }
-
-    function getSuportes() {
-        const dados = localStorage.getItem('sip_suportes');
-        return dados ? JSON.parse(dados) : [];
-    }
-
-    function gerarNovoId(dados) {
-        if (dados.length === 0) return "001";
-        const idsNumericos = dados
-            .map(u => parseInt(u.id, 10))
-            .filter(n => !isNaN(n));
-        const maxId = idsNumericos.length > 0 ? Math.max(...idsNumericos) : 0;
-        return String(maxId + 1).padStart(3, "0");
-    }
-
-    function renderizarTabela() {
-        if (!tabelaBody) return;
-
-        const dados = carregarDados();
-        tabelaBody.innerHTML = "";
-
-        if (dados.length === 0) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td colspan="6" class="estado-vazio">
-                    <i class="bi bi-inbox"></i>
-                    <p>Nenhum usuário cadastrado.</p>
-                </td>
-            `;
-            tabelaBody.appendChild(tr);
-            return;
-        }
-
-        dados.forEach((user, index) => {
-            const status = user.status || "Ativo";
-            const classeStatus =
-                status === "Ativo" ? "on" :
-                status === "Pendente" ? "pendente" : "open";
-
-            const tr = document.createElement("tr");
-
-            tr.innerHTML = `
-                <td>${user.id || "—"}</td>
-                <td>${user.name || "—"}</td>
-                <td>${user.email || "—"}</td>
-                <td>${user.telefone || "—"}</td>
-                <td><span class="${classeStatus}">${status}</span></td>
-                <td>
-                    <button class="btn-view" data-index="${index}" title="Ver detalhes">
-                        <i class="bi bi-eye-fill"></i>
-                    </button>
-                    <button class="btn-remove" data-index="${index}" title="Remover">
-                        <i class="bi bi-trash-fill"></i>
-                    </button>
-                </td>
-            `;
-
-            tabelaBody.appendChild(tr);
+// Ver detalhes do cliente
+async function verDetalhes(clienteId) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/cliente/${clienteId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        tabelaBody.querySelectorAll(".btn-view").forEach(btn => {
-            btn.addEventListener("click", () => {
-                const idx = parseInt(btn.getAttribute("data-index"), 10);
-                verDetalhesUsuario(idx);
-            });
-        });
-
-        tabelaBody.querySelectorAll(".btn-remove").forEach(btn => {
-            btn.addEventListener("click", () => {
-                const idx = parseInt(btn.getAttribute("data-index"), 10);
-                removerUsuario(idx);
-            });
-        });
-    }
-
-    function removerUsuario(index) {
-        let dados = carregarDados();
-        dados.splice(index, 1);
-        salvarDados(dados);
-        renderizarTabela();
-    }
-
-    window.verDetalhesUsuario = function (index) {
-        const usuarios = carregarDados();
-        const user = usuarios[index];
-        if (!user) return;
-
-        const detNome = document.getElementById("det-nome");
-        const detEmail = document.getElementById("det-email");
-        const detTelefone = document.getElementById("det-telefone");
-        const detStatus = document.getElementById("det-status");
-        const detPedidos = document.getElementById("det-pedidos");
-        const detSuportes = document.getElementById("det-suportes");
-
-        if (detNome) detNome.textContent = user.name || "—";
-        if (detEmail) detEmail.textContent = user.email || "—";
-        if (detTelefone) detTelefone.textContent = user.telefone || "—";
-        if (detStatus) detStatus.textContent = user.status || "Ativo";
-
-        // Pedidos / Projetos
-        const pedidos = getOrcamentos().filter(p => p.userEmail === user.email);
-        if (detPedidos) {
-            if (pedidos.length === 0) {
-                detPedidos.innerHTML = '<p class="sem-dados">Nenhum pedido encontrado.</p>';
-            } else {
-                let html = '';
-                pedidos.slice().reverse().forEach(p => {
-                    html += `
-                        <div class="detalhe-card">
-                            <strong>${p.titulo || 'Sem título'}</strong>
-                            <span class="detalhe-tag">${p.tipo || '-'}</span>
-                            <p>${p.descricao || ''}</p>
-                            <div class="detalhe-meta">
-                                <span><i class="bi bi-calendar"></i> Prazo: ${p.prazo || '-'}</span>
-                                <span><i class="bi bi-clock"></i> ${p.dataEnvio || '-'}</span>
-                                <span class="detalhe-status ${(p.status || 'Pendente').toLowerCase().replace(' ', '-')}">${p.status || 'Pendente'}</span>
-                            </div>
-                        </div>
-                    `;
-                });
-                detPedidos.innerHTML = html;
-            }
+        if (response.ok) {
+            const data = await response.json();
+            exibirModalDetalhes(data);
         }
+    } catch (error) {
+        console.error('Erro ao carregar detalhes:', error);
+        alert('Erro ao carregar detalhes do cliente');
+    }
+}
 
-        // Suportes
-        const suportes = getSuportes().filter(s => s.userEmail === user.email);
-        if (detSuportes) {
-            if (suportes.length === 0) {
-                detSuportes.innerHTML = '<p class="sem-dados">Nenhum chamado encontrado.</p>';
-            } else {
-                let html = '';
-                suportes.slice().reverse().forEach(s => {
-                    html += `
-                        <div class="detalhe-card">
-                            <strong>${s.assunto || 'Sem assunto'}</strong>
-                            <p>${s.mensagem || ''}</p>
-                            <div class="detalhe-meta">
-                                <span><i class="bi bi-clock"></i> ${s.dataEnvio || '-'}</span>
-                                <span class="detalhe-status ${(s.status || 'Aberto').toLowerCase().replace(' ', '-')}">${s.status || 'Aberto'}</span>
-                            </div>
-                        </div>
-                    `;
-                });
-                detSuportes.innerHTML = html;
-            }
-        }
+// Exibir modal com detalhes do cliente
+function exibirModalDetalhes(data) {
+    const modal = document.getElementById('modal-detalhes');
+    if (!modal) return;
 
-        abrirModalDetalhes();
+    // Dados pessoais
+    const updateElement = (id, value) => {
+        const elem = document.getElementById(id);
+        if (elem) elem.textContent = value;
     };
 
-    window.adicionarUsuario = function () {
-        const nomeInput = document.getElementById("nome");
-        const emailInput = document.getElementById("email");
-        const telefoneInput = document.getElementById("telefone");
-        const statusInput = document.getElementById("status");
+    updateElement('det-nome', data.usuario.nome);
+    updateElement('det-email', data.usuario.email);
+    updateElement('det-telefone', data.usuario.telefone || '—');
+    updateElement('det-status', data.usuario.status);
 
-        if (!nomeInput || !emailInput || !statusInput) return;
+    // Pedidos
+    const pedidosHTML = data.pedidos.length > 0 
+        ? data.pedidos.map(p => `
+            <div style="padding:10px;border-bottom:1px solid #eee;">
+                <strong>${p.tipo_servico}</strong> - <span style="color:#666;">${p.status}</span>
+                <br><small>R$ ${p.valor_estimado || 0} | ${new Date(p.data_criacao).toLocaleDateString('pt-BR')}</small>
+            </div>
+        `).join('')
+        : '<p style="color:#999;">Nenhum pedido</p>';
+    const detPedidos = document.getElementById('det-pedidos');
+    if (detPedidos) detPedidos.innerHTML = pedidosHTML;
 
-        const nome = nomeInput.value.trim();
-        const email = emailInput.value.trim().toLowerCase();
-        const telefone = telefoneInput ? telefoneInput.value.trim() : "";
-        const status = statusInput.value;
+    // Chamados de suporte
+    const suportesHTML = data.chamados.length > 0
+        ? data.chamados.map(c => `
+            <div style="padding:10px;border-bottom:1px solid #eee;">
+                <strong>${c.titulo}</strong> - <span style="color:#666;">${c.status}</span>
+                <br><small>Prioridade: ${c.prioridade}</small>
+            </div>
+        `).join('')
+        : '<p style="color:#999;">Nenhum chamado</p>';
+    const detSuportes = document.getElementById('det-suportes');
+    if (detSuportes) {
+        detSuportes.innerHTML = suportesHTML;
+        // Adicionar ML Insights
+        const mlHTML = `
+            <div style="background:#f0f4f8;padding:15px;border-radius:8px;margin-top:15px;">
+                <h4>ML Insights</h4>
+                <p><strong>Taxa de Conclusão:</strong> ${data.resumo.taxa_conclusao}%</p>
+                <p><strong>Valor Total:</strong> R$ ${data.resumo.valor_total.toFixed(2)}</p>
+                <p><strong>Tickets Abertos:</strong> ${data.chamados.filter(c => c.status === 'aberto').length}</p>
+            </div>
+        `;
+        detSuportes.innerHTML += mlHTML;
+    }
 
-        if (nome === "") {
-            alert("Digite um nome!");
-            return;
+    modal.style.display = 'block';
+    window.abrirModalDetalhes();
+}
+
+// Carregar relatório de ML
+async function carregarRelatorioML() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            exibirRelatorioML(data);
         }
+    } catch (error) {
+        console.error('Erro ao carregar relatório ML:', error);
+    }
+}
 
-        if (email === "") {
-            alert("Digite um e-mail!");
-            return;
+// Exibir relatório de ML
+function exibirRelatorioML(data) {
+    const container = document.getElementById('ml-report-container') || document.body;
+    
+    const htmlContent = `
+        <div style="padding:20px;background:#fff;">
+            <h2>Relatório de Machine Learning</h2>
+            
+            <section style="margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;">
+                <h3>Classificador de Suporte</h3>
+                <ul>
+                    ${data.classificador_suporte.categorias.map(c => 
+                        `<li>${c.categoria}: ${c.count} chamados</li>`
+                    ).join('')}
+                </ul>
+            </section>
+
+            <section style="margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;">
+                <h3>Recomendador de Serviços</h3>
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#e0e0e0;">
+                            <th style="padding:10px;text-align:left;">Tipo de Serviço</th>
+                            <th style="padding:10px;text-align:left;">Solicitações</th>
+                            <th style="padding:10px;text-align:left;">Valor Médio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.recomendador_servicos.map(r => `
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:10px;">${r.tipo}</td>
+                                <td style="padding:10px;">${r.count}</td>
+                                <td style="padding:10px;">R$ ${r.valor_medio.toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </section>
+
+            <section style="margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;">
+                <h3>Estimador de Orçamento</h3>
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#e0e0e0;">
+                            <th style="padding:10px;text-align:left;">Tipo</th>
+                            <th style="padding:10px;text-align:left;">Valor Médio</th>
+                            <th style="padding:10px;text-align:left;">Solicitações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.estimador_orcamento.map(e => `
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:10px;">${e.tipo}</td>
+                                <td style="padding:10px;">R$ ${e.valor_medio.toFixed(2)}</td>
+                                <td style="padding:10px;">${e.count}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </section>
+        </div>
+    `;
+
+    if (document.getElementById('ml-report-container')) {
+        document.getElementById('ml-report-container').innerHTML = htmlContent;
+    } else {
+        alert(htmlContent);
+    }
+}
+
+// Adicionar usuário
+window.adicionarUsuario = async function() {
+    const nome = document.getElementById('nome').value;
+    const email = document.getElementById('email').value;
+    const telefone = document.getElementById('telefone').value;
+
+    if (!nome || !email) {
+        alert('Nome e email são obrigatórios');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/auth/cadastro`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome,
+                email,
+                telefone,
+                senha: 'senha123'
+            })
+        });
+
+        if (response.ok) {
+            alert('Usuário adicionado com sucesso');
+            window.fecharModal();
+            carregarClientes();
+            // Limpar campos
+            document.getElementById('nome').value = '';
+            document.getElementById('email').value = '';
+            document.getElementById('telefone').value = '';
+        } else {
+            const error = await response.json();
+            alert(error.error || 'Erro ao adicionar usuário');
         }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao adicionar usuário');
+    }
+}
 
-        const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!regexEmail.test(email)) {
-            alert("E-mail inválido!");
-            return;
-        }
+// Logout
+function logout() {
+    localStorage.removeItem('access_token');
+    window.location.href = 'login.html';
+}
 
-        let dados = carregarDados();
-
-        if (dados.some(u => u.email === email)) {
-            alert("E-mail já cadastrado!");
-            return;
-        }
-
-        const novoId = gerarNovoId(dados);
-
-        const novoUsuario = {
-            id: novoId,
-            name: nome,
-            email: email,
-            telefone: telefone,
-            status: status,
-            password: btoa("123456")
-        };
-
-        dados.push(novoUsuario);
-        salvarDados(dados);
-        renderizarTabela();
-
-        nomeInput.value = "";
-        emailInput.value = "";
-        if (telefoneInput) telefoneInput.value = "";
-        fecharModal();
-    };
-
-    // ============================
-    // INICIAR
-    // ============================
-    renderizarTabela();
-});
 

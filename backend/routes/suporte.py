@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import db, ChamadoSuporte, Notificacao
+from ..models import db, ChamadoSuporte, Notificacao
 
 suporte_bp = Blueprint('suporte', __name__)
 
@@ -49,6 +49,11 @@ def create_chamado():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Erro ao criar chamado"}), 500
+
+@suporte_bp.route('/suporte', methods=['POST'])
+@jwt_required()
+def create_suporte():
+    return create_chamado()
 
 @suporte_bp.route('/chamados/<int:chamado_id>', methods=['PUT'])
 @jwt_required()

@@ -13,6 +13,7 @@ class Usuario(db.Model):
     telefone = db.Column(db.String(20))
     data_cadastro = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='ativo')  # ativo, inativo, banido
+    role = db.Column(db.String(20), default='user')  # user, admin
 
     # Relacionamentos
     pedidos = db.relationship('Pedido', backref='usuario', lazy=True)
@@ -33,7 +34,8 @@ class Usuario(db.Model):
             'nome': self.nome,
             'telefone': self.telefone,
             'data_cadastro': self.data_cadastro.isoformat(),
-            'status': self.status
+            'status': self.status,
+            'role': self.role
         }
 
 class Pedido(db.Model):

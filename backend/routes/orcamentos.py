@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import db, Orcamento, Notificacao
+from ..models import db, Orcamento, Notificacao, Pedido
+from datetime import datetime
 import json
 
 orcamentos_bp = Blueprint('orcamentos', __name__)
@@ -64,3 +65,40 @@ def get_orcamento(orcamento_id):
         return jsonify({"error": "Orçamento não encontrado"}), 404
 
     return jsonify(orcamento.to_dict()), 200
+
+@orcamentos_bp.route('/orcamentos/<int:orcamento_id>/aprovar', methods=['POST'])
+@jwt_required()
+def aprovar_orcamento(orcamento_id):
+    current_user_id = int(get_jwt_identity())
+    orcamento = Orcamento.query.get(orcamento_id)
+
+    if not orcamento or orcamento.usuario_id != current_user_id:
+        return jsonify({"error": "Orçamento não encontrado"}), 404
+
+    try:
+        pedido = Pedido(
+            usuario_id=current_user_id,
+            tipo_servico=orcamento.tipo,
+            descricao=f"Pedido gerado a partir do orçamento {orcamento.id}",
+            valor_estimado=orcamento.valor_estimado
+        )
+        db.session.add(pedido)
+        orcamento.status = 'aprovado'
+        db.session.commit()
+
+        notificacao = Notificacao(
+            usuario_id=current_user_id,
+            tipo='orcamento',
+            mensagem=f'Orçamento aprovado e pedido criado: {pedido.tipo_servico}'
+        )
+        db.session.add(notificacao)
+        db.session.commit()
+
+        return jsonify({
+            "message": "Orçamento aprovado e pedido criado com sucesso",
+            "pedido": pedido.to_dict(),
+            "orcamento": orcamento.to_dict()
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Erro ao aprovar orçamento"}), 500

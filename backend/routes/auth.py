@@ -1,9 +1,18 @@
 from flask import Blueprint, request, jsonify
-from models import db, Usuario
-from auth import criar_usuario, autenticar_usuario, gerar_tokens
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from ..models import db, Usuario
+from ..auth import criar_usuario, autenticar_usuario, gerar_tokens
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 
 auth_bp = Blueprint('auth', __name__)
+
+@auth_bp.route('/me', methods=['GET'])
+@jwt_required()
+def me():
+    current_user_id = int(get_jwt_identity())
+    usuario = Usuario.query.get(current_user_id)
+    if not usuario:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+    return jsonify(usuario.to_dict()), 200
 
 @auth_bp.route('/cadastro', methods=['POST'])
 def cadastro():
