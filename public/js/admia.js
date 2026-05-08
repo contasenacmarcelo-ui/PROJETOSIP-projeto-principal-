@@ -3,9 +3,11 @@ let token = localStorage.getItem('access_token');
 let usuarioAtual = null;
 
 // Verificar autenticação ao carregar a página
-document.addEventListener('DOMContentLoaded', () => {
-    verificarAutenticacao();
-    initializeAdmin();
+document.addEventListener('DOMContentLoaded', async () => {
+    await verificarAutenticacao();
+    if (usuarioAtual) {
+        initializeAdmin();
+    }
 });
 
 // Verificar se é admin
@@ -75,6 +77,10 @@ function setupModals() {
 
     window.fecharModal = function() {
         if (modal) modal.style.display = "none";
+    };
+
+    window.abrirModalDetalhes = function() {
+        if (modalDetalhes) modalDetalhes.style.display = "block";
     };
 
     window.fecharModalDetalhes = function() {

@@ -123,9 +123,9 @@ btn.addEventListener("click", function (event) {
             console.log("Dados recebidos:", data);
             // Sucesso: armazenar token se fornecido
             if (data.access_token) {
-                localStorage.setItem('token', data.access_token);
+                localStorage.setItem('access_token', data.access_token);
             }
-            localStorage.setItem('user', JSON.stringify(data.user || novo));
+            localStorage.setItem('loggedInUser', JSON.stringify(data.user || novo));
 
             // Redirecionar para login
             window.location.href = 'login.html';

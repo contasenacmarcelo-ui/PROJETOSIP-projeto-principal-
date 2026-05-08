@@ -1,11 +1,24 @@
 // Perfil do Cliente — menu suspenso com dados do usuário logado
 // + Notificações + Dashboard Estatísticas
 
+const API_BASE = 'http://localhost:5000/api';
+
 document.addEventListener('DOMContentLoaded', function () {
     // ========== PERFIL ==========
     const btnProfile = document.getElementById("btn-profile");
     const menu = document.getElementById("menu");
     const closeMenu = document.getElementById("close-menu");
+
+    let pedidosServer = [];
+    let chamadosServer = [];
+    let notificacoesServer = [];
+
+    const getToken = () => localStorage.getItem('access_token');
+    const token = getToken();
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
 
     if (btnProfile && menu) {
         btnProfile.addEventListener("click", (e) => {
@@ -35,8 +48,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const perfilEmail = document.getElementById('perfil-email');
 
             if (user) {
-                if (menuName) menuName.innerHTML = '<b>' + (user.name || '--') + '</b>';
-                if (perfilName) perfilName.textContent = user.name || '--';
+                if (menuName) menuName.innerHTML = '<b>' + (user.nome || user.name || '--') + '</b>';
+                if (perfilName) perfilName.textContent = user.nome || user.name || '--';
                 if (perfilEmail) perfilEmail.textContent = user.email || '--';
             } else {
                 if (menuName) menuName.innerHTML = '<b>--</b>';
@@ -71,32 +84,84 @@ document.addEventListener('DOMContentLoaded', function () {
     const listaNotificacao = document.getElementById('notificacaoLista');
     const btnMarcarTodas = document.getElementById('marcarTodasLidas');
 
-    function getNotificacoes() {
-        const dados = localStorage.getItem('sip_notificacoes');
-        return dados ? JSON.parse(dados) : [];
+    async function fetchPedidos() {
+        const token = getToken();
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/pedidos`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.ok) {
+                pedidosServer = await response.json();
+                atualizarDashboard();
+            }
+        } catch (error) {
+            console.error('Erro ao buscar pedidos:', error);
+        }
     }
 
-    function salvarNotificacoes(notificacoes) {
-        localStorage.setItem('sip_notificacoes', JSON.stringify(notificacoes));
+    async function fetchSuportes() {
+        const token = getToken();
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/chamados`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.ok) {
+                chamadosServer = await response.json();
+                atualizarDashboard();
+            }
+        } catch (error) {
+            console.error('Erro ao buscar chamados:', error);
+        }
     }
 
-    function criarNotificacao(titulo, tipo) {
-        const notificacoes = getNotificacoes();
-        const nova = {
-            id: Date.now(),
-            titulo: titulo,
-            tipo: tipo || 'info',
-            lida: false,
-            data: new Date().toLocaleString('pt-BR')
-        };
-        notificacoes.unshift(nova);
-        salvarNotificacoes(notificacoes);
+    async function fetchNotificacoes() {
+        const token = getToken();
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/notificacoes`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.ok) {
+                notificacoesServer = await response.json();
+                atualizarBadge();
+                renderizarNotificacoes();
+            }
+        } catch (error) {
+            console.error('Erro ao buscar notificações:', error);
+        }
+    }
+
+    async function marcarNotificacaoLida(id) {
+        const token = getToken();
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/notificacoes/${id}/lido`, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (response.ok) {
+                await fetchNotificacoes();
+            }
+        } catch (error) {
+            console.error('Erro ao marcar notificação como lida:', error);
+        }
+    }
+
+    async function criarNotificacao(titulo, tipo) {
+        // Atualiza as notificações vindas do servidor após criar um pedido ou chamado.
+        await fetchNotificacoes();
         atualizarBadge();
         renderizarNotificacoes();
     }
 
     function atualizarBadge() {
-        const naoLidas = getNotificacoes().filter(n => !n.lida).length;
+        const naoLidas = notificacoesServer.filter(n => !n.lida).length;
         if (badgeNotificacao) {
             badgeNotificacao.textContent = naoLidas;
             badgeNotificacao.style.display = naoLidas > 0 ? 'flex' : 'none';
@@ -105,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderizarNotificacoes() {
         if (!listaNotificacao) return;
-        const notificacoes = getNotificacoes();
+        const notificacoes = notificacoesServer;
 
         if (notificacoes.length === 0) {
             listaNotificacao.innerHTML = '<div class="notificacao-vazia"><i class="bi bi-bell-slash"></i><p>Sem notificações</p></div>';
@@ -127,26 +192,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="notificacao-item ${n.lida ? 'lida' : ''}" data-id="${n.id}">
                     <i class="bi ${icone}"></i>
                     <div class="notificacao-conteudo">
-                        <p class="notificacao-titulo">${n.titulo}</p>
-                        <span class="notificacao-tempo">${n.data}</span>
+                        <p class="notificacao-titulo">${n.mensagem || n.titulo}</p>
+                        <span class="notificacao-tempo">${n.data || ''}</span>
                     </div>
                 </div>
             `;
         });
         listaNotificacao.innerHTML = html;
 
-        // clicar em uma notificação marca como lida
         listaNotificacao.querySelectorAll('.notificacao-item').forEach(item => {
             item.addEventListener('click', () => {
                 const id = parseInt(item.getAttribute('data-id'));
-                const nots = getNotificacoes();
-                const not = nots.find(n => n.id === id);
-                if (not) {
-                    not.lida = true;
-                    salvarNotificacoes(nots);
-                    atualizarBadge();
-                    renderizarNotificacoes();
-                }
+                marcarNotificacaoLida(id);
             });
         });
     }
@@ -168,37 +225,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // marcar todas como lidas
     if (btnMarcarTodas) {
-        btnMarcarTodas.addEventListener('click', () => {
-            const nots = getNotificacoes();
-            nots.forEach(n => n.lida = true);
-            salvarNotificacoes(nots);
-            atualizarBadge();
-            renderizarNotificacoes();
+        btnMarcarTodas.addEventListener('click', async () => {
+            const promises = notificacoesServer
+                .filter(n => !n.lida)
+                .map(n => marcarNotificacaoLida(n.id));
+            await Promise.all(promises);
+            await fetchNotificacoes();
         });
     }
 
-    // notificações iniciais (apenas se ainda não existirem)
-    function criarNotificacoesIniciais() {
-        const nots = getNotificacoes();
-        if (nots.length === 0) {
-            const iniciais = [
-                { id: Date.now() - 3000, titulo: 'Bem-vindo ao Painel do Cliente!', tipo: 'info', lida: false, data: new Date().toLocaleString('pt-BR') },
-                { id: Date.now() - 2000, titulo: 'Complete seu perfil para melhor atendimento.', tipo: 'aviso', lida: false, data: new Date().toLocaleString('pt-BR') },
-                { id: Date.now() - 1000, titulo: 'Dica: você pode solicitar orçamentos diretamente pelo painel.', tipo: 'info', lida: true, data: new Date().toLocaleString('pt-BR') }
-            ];
-            salvarNotificacoes(iniciais);
-        }
+    async function carregarDadosServidor() {
+        await Promise.all([
+            fetchPedidos(),
+            fetchSuportes(),
+            fetchNotificacoes()
+        ]);
     }
 
-    criarNotificacoesIniciais();
-    atualizarBadge();
+    carregarDadosServidor();
 
     // ========== DASHBOARD ESTATÍSTICAS ==========
     function atualizarDashboard() {
-        const pedidos = getOrcamentos().length;
-        const suportes = getSuportes().length;
-        const nots = getNotificacoes().length;
-        // orçamentos = pedidos (mesma base) ou pode separar depois
+        const pedidos = pedidosServer.length;
+        const suportes = chamadosServer.length;
+        const nots = notificacoesServer.length;
         const orcamentos = pedidos;
 
         const elPedidos = document.getElementById('statPedidos');
@@ -263,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderizarPedidos() {
-        const pedidos = getOrcamentos();
+        const pedidos = pedidosServer;
         if (pedidos.length === 0) {
             listaPedidos.innerHTML = `
                 <div class="sem-pedidos">
@@ -277,10 +327,10 @@ document.addEventListener('DOMContentLoaded', function () {
         pedidos.slice().reverse().forEach(p => {
             html += `
                 <div class="pedido-item">
-                    <strong>${p.titulo || 'Sem título'}</strong><br>
-                    Tipo: ${p.tipo || '-'}<br>
+                    <strong>${p.tipo_servico || 'Sem título'}</strong><br>
+                    Tipo: ${p.tipo_servico || '-'}<br>
                     Prazo: ${p.prazo || '-'}<br>
-                    Enviado: ${p.dataEnvio || '-'}<br>
+                    Enviado: ${p.data_criacao ? new Date(p.data_criacao).toLocaleDateString('pt-BR') : '-'}<br>
                     <span class="pedido-status status-pendente">${p.status || 'Pendente'}</span>
                 </div>
             `;
@@ -359,11 +409,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const pedido = {
                 tipo_servico: tipo,
-                descricao: descricao
+                descricao: descricao,
+                prazo: prazo
             };
 
-            // Obter token se existir
-            const token = localStorage.getItem('token');
+            const token = getToken();
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -372,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // ENVIAR PARA O SERVIDOR
-            fetch('http://localhost:5000/api/pedidos', {
+            fetch(`${API_BASE}/pedidos`, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(pedido)
@@ -383,9 +433,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 return response.json();
             })
-            .then(data => {
+            .then(async data => {
                 console.log('Pedido enviado com sucesso:', data);
                 criarNotificacao(`Novo pedido enviado: "${titulo}"`, 'pedido');
+                await fetchPedidos();
+                await fetchNotificacoes();
                 atualizarDashboard();
                 
                 if (typeof toastSucesso === 'function') {
@@ -481,8 +533,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 descricao: mensagem
             };
 
-            // Obter token se existir
-            const token = localStorage.getItem('token');
+            const token = getToken();
             const headers = {
                 'Content-Type': 'application/json'
             };
@@ -491,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             // ENVIAR PARA O SERVIDOR
-            fetch('http://localhost:5000/api/suporte', {
+            fetch(`${API_BASE}/suporte`, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(chamado)
@@ -502,9 +553,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 return response.json();
             })
-            .then(data => {
+            .then(async data => {
                 console.log('Chamado enviado com sucesso:', data);
                 criarNotificacao(`Chamado de suporte aberto: "${assunto}"`, 'suporte');
+                await fetchSuportes();
+                await fetchNotificacoes();
                 atualizarDashboard();
 
                 if (typeof toastSucesso === 'function') {

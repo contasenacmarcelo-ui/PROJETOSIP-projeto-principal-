@@ -105,7 +105,7 @@ botao.addEventListener("click", function (event) {
         .then(data => {
             // Sucesso: armazenar token e dados do usuário
             if (data.access_token) {
-                localStorage.setItem('token', data.access_token);
+                localStorage.setItem('access_token', data.access_token);
             }
             localStorage.setItem('loggedInUser', JSON.stringify(data.user || { email: credenciais.email }));
 

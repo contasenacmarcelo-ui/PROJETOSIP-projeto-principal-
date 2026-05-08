@@ -18,6 +18,9 @@ def me():
 def cadastro():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "JSON inválido ou corpo vazio"}), 400
+
         required_fields = ['email', 'senha', 'nome']
 
         for field in required_fields:
@@ -53,6 +56,9 @@ def cadastro():
 def login():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "JSON inválido ou corpo vazio"}), 400
+
         email = data.get('email')
         senha = data.get('senha')
 

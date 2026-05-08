@@ -121,7 +121,7 @@ btnEnviar.addEventListener("click", () => {
     };
 
     // Obter token se existir
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('access_token');
     const headers = {
         'Content-Type': 'application/json'
     };

@@ -18,6 +18,8 @@ def get_orcamentos():
 def create_orcamento():
     current_user_id = int(get_jwt_identity())
     data = request.get_json()
+    if not data:
+        return jsonify({"error": "JSON inválido ou corpo vazio"}), 400
 
     required_fields = ['tipo']
     for field in required_fields:

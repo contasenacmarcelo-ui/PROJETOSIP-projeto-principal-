@@ -17,6 +17,8 @@ def get_pedidos():
 def create_pedido():
     current_user_id = int(get_jwt_identity())
     data = request.get_json()
+    if not data:
+        return jsonify({"error": "JSON inválido ou corpo vazio"}), 400
 
     required_fields = ['tipo_servico', 'descricao']
     for field in required_fields:
