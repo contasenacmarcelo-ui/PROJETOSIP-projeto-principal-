@@ -500,6 +500,116 @@ tr:hover {
     color: #64748b;
 }
 
+/* ------------------------------------------ SUPORTE -------------------------------------------------------------------------------------- */
+
+.suporte-section {
+    margin-top: 40px;
+    padding: 20px;
+    background: #0b1f3a;
+    border-radius: 12px;
+    border: 1px solid #1e293b;
+}
+
+.suporte-section h2 {
+    color: #e2e8f0;
+    font-family: "Readex Pro", sans-serif;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.suporte-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.mensagem-suporte {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.mensagem-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.mensagem-header strong {
+    color: #e2e8f0;
+    font-size: 16px;
+}
+
+.status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status.aberto {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status.em_andamento {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.status.fechado {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.mensagem-titulo {
+    color: #cbd5e1;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.mensagem-descricao {
+    color: #94a3b8;
+    margin-bottom: 15px;
+    line-height: 1.4;
+}
+
+.mensagem-acoes {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-responder, .btn-resolver {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-responder {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-responder:hover {
+    background: #2563eb;
+}
+
+.btn-resolver {
+    background: #10b981;
+    color: white;
+}
+
+.btn-resolver:hover {
+    background: #059669;
+}
+
 .detalhe-meta span {
     display: flex;
     align-items: center;

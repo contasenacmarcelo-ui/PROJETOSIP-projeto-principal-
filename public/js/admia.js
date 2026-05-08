@@ -55,6 +55,7 @@ function initializeAdmin() {
     // Carregar dados
     carregarDashboard();
     carregarClientes();
+    carregarMensagensSuporte();
 
     // Evento do botão de logout
     const logoutBtn = document.querySelector('.logout-btn');
@@ -163,6 +164,8 @@ function exibirClientes(clientes) {
 
     clientes.forEach(cliente => {
         const row = document.createElement('tr');
+        const ultimoLogin = cliente.data_ultimo_login ? new Date(cliente.data_ultimo_login).toLocaleDateString('pt-BR') : 'Nunca';
+        const emailVerificado = cliente.email_verificado ? 'Sim' : 'Não';
         row.innerHTML = `
             <td>${cliente.id}</td>
             <td>${cliente.nome}</td>
@@ -170,7 +173,9 @@ function exibirClientes(clientes) {
             <td>${cliente.status}</td>
             <td>${cliente.num_pedidos}</td>
             <td>${cliente.num_chamados}</td>
-            <td>R$ ${cliente.valor_total_pedidos.toFixed(2)}</td>
+            <td>R$ ${cliente.total_gasto.toFixed(2)}</td>
+            <td>${ultimoLogin}</td>
+            <td>${emailVerificado}</td>
             <td>
                 <button onclick="verDetalhes(${cliente.id})" class="btn-detalhes" title="Ver Detalhes">
                     <i class="bi bi-eye-fill"></i> Ver
@@ -385,6 +390,110 @@ window.adicionarUsuario = async function() {
 function logout() {
     localStorage.removeItem('access_token');
     window.location.href = 'login.html';
+}
+
+// Carregar mensagens de suporte
+async function carregarMensagensSuporte() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/suporte/mensagens`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            exibirMensagensSuporte(data.mensagens);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar mensagens de suporte:', error);
+    }
+}
+
+// Exibir mensagens de suporte
+function exibirMensagensSuporte(mensagens) {
+    const container = document.getElementById('suporte-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (mensagens.length === 0) {
+        container.innerHTML = '<p style="text-align:center;padding:20px;color:#999;">Nenhuma mensagem de suporte</p>';
+        return;
+    }
+
+    mensagens.forEach(msg => {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'mensagem-suporte';
+        msgDiv.innerHTML = `
+            <div class="mensagem-header">
+                <strong>${msg.nome}</strong> (${msg.email})
+                <span class="status ${msg.status}">${msg.status}</span>
+            </div>
+            <div class="mensagem-titulo">${msg.titulo}</div>
+            <div class="mensagem-descricao">${msg.descricao}</div>
+            <div class="mensagem-acoes">
+                <button onclick="responderMensagem(${msg.id})" class="btn-responder">Responder</button>
+                <button onclick="marcarResolvido(${msg.id})" class="btn-resolver">Marcar Resolvido</button>
+            </div>
+        `;
+        container.appendChild(msgDiv);
+    });
+}
+
+// Responder mensagem
+async function responderMensagem(chamadoId) {
+    const resposta = prompt('Digite sua resposta:');
+    if (!resposta) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}/responder`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                resposta: resposta,
+                status: 'em_andamento'
+            })
+        });
+
+        if (response.ok) {
+            alert('Resposta enviada com sucesso!');
+            carregarMensagensSuporte();
+        } else {
+            alert('Erro ao enviar resposta');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao enviar resposta');
+    }
+}
+
+// Marcar como resolvido
+async function marcarResolvido(chamadoId) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}/responder`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                resposta: 'Chamado marcado como resolvido.',
+                status: 'fechado'
+            })
+        });
+
+        if (response.ok) {
+            alert('Chamado marcado como resolvido!');
+            carregarMensagensSuporte();
+        } else {
+            alert('Erro ao marcar como resolvido');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao marcar como resolvido');
+    }
 }
 
 

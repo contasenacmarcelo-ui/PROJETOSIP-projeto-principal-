@@ -69,6 +69,11 @@ def login():
         if not usuario:
             return jsonify({"error": "Credenciais inválidas"}), 401
 
+        # Atualizar último login
+        from datetime import datetime
+        usuario.data_ultimo_login = datetime.utcnow()
+        db.session.commit()
+
         access_token, refresh_token = gerar_tokens(usuario)
 
         return jsonify({

@@ -1,17 +1,30 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+import argon2
+from cryptography.fernet import Fernet
+import os
+import base64
 
 db = SQLAlchemy()
+
+# Gerar chave para criptografia AES
+def get_encryption_key():
+    key = os.getenv('ENCRYPTION_KEY', 'default-encryption-key-change-in-production-32-chars')
+    return base64.urlsafe_b64encode(key.encode()[:32])
+
+cipher = Fernet(get_encryption_key())
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    senha_hash = db.Column(db.String(256), nullable=False)
+    email_criptografado = db.Column(db.Text, unique=True, nullable=False)
+    senha_hash = db.Column(db.Text, nullable=False)  # Argon2 hash
     nome = db.Column(db.String(100), nullable=False)
-    telefone = db.Column(db.String(20))
+    telefone_criptografado = db.Column(db.Text)
     data_cadastro = db.Column(db.DateTime, default=datetime.utcnow)
+    data_ultimo_login = db.Column(db.DateTime)
+    email_verificado = db.Column(db.Boolean, default=False)
     status = db.Column(db.String(20), default='ativo')  # ativo, inativo, banido
     role = db.Column(db.String(20), default='user')  # user, admin
 
@@ -21,11 +34,45 @@ class Usuario(db.Model):
     chamados_suporte = db.relationship('ChamadoSuporte', backref='usuario', lazy=True)
     notificacoes = db.relationship('Notificacao', backref='usuario', lazy=True)
 
+    @property
+    def email(self):
+        return cipher.decrypt(self.email_criptografado.encode()).decode()
+
+    @email.setter
+    def email(self, value):
+        self.email_criptografado = cipher.encrypt(value.encode()).decode()
+
+    @property
+    def telefone(self):
+        if self.telefone_criptografado:
+            return cipher.decrypt(self.telefone_criptografado.encode()).decode()
+        return None
+
+    @telefone.setter
+    def telefone(self, value):
+        if value:
+            self.telefone_criptografado = cipher.encrypt(value.encode()).decode()
+        else:
+            self.telefone_criptografado = None
+
     def set_senha(self, senha):
-        self.senha_hash = generate_password_hash(senha)
+        # Dupla camada: Argon2 hash
+        self.senha_hash = argon2.hash_password(senha.encode(), argon2.Type.ID).decode()
 
     def check_senha(self, senha):
-        return check_password_hash(self.senha_hash, senha)
+        try:
+            return argon2.verify_password(senha.encode(), self.senha_hash.encode())
+        except argon2.exceptions.VerifyMismatchError:
+            return False
+
+    @property
+    def total_gasto(self):
+        # Calcular total gasto baseado em pedidos concluídos
+        total = 0
+        for pedido in self.pedidos:
+            if pedido.status == 'concluido' and pedido.valor_estimado:
+                total += pedido.valor_estimado
+        return total
 
     def to_dict(self):
         return {
@@ -34,8 +81,11 @@ class Usuario(db.Model):
             'nome': self.nome,
             'telefone': self.telefone,
             'data_cadastro': self.data_cadastro.isoformat(),
+            'data_ultimo_login': self.data_ultimo_login.isoformat() if self.data_ultimo_login else None,
+            'email_verificado': self.email_verificado,
             'status': self.status,
-            'role': self.role
+            'role': self.role,
+            'total_gasto': self.total_gasto
         }
 
 class Pedido(db.Model):

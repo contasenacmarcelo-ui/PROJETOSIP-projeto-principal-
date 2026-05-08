@@ -109,11 +109,14 @@ def get_clientes():
                 "email": usuario.email,
                 "telefone": usuario.telefone,
                 "data_cadastro": usuario.data_cadastro.isoformat(),
+                "data_ultimo_login": usuario.data_ultimo_login.isoformat() if usuario.data_ultimo_login else None,
+                "email_verificado": usuario.email_verificado,
                 "status": usuario.status,
                 "num_pedidos": len(pedidos),
                 "num_chamados": len(chamados),
                 "num_orcamentos": len(orcamentos),
                 "valor_total_pedidos": valor_total,
+                "total_gasto": usuario.total_gasto,
                 "pedidos": [p.to_dict() for p in pedidos],
                 "chamados": [c.to_dict() for c in chamados],
                 "orcamentos": [o.to_dict() for o in orcamentos]
@@ -257,6 +260,80 @@ def promover_admin(usuario_id):
         return jsonify({
             "message": "Usuário promovido a admin",
             "usuario": usuario.to_dict()
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/suporte/mensagens', methods=['GET'])
+@jwt_required()
+def get_mensagens_suporte():
+    """Retorna todas as mensagens de suporte para admin"""
+    user_id = int(get_jwt_identity())
+    
+    if not verificar_admin(user_id):
+        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
+    
+    try:
+        chamados = ChamadoSuporte.query.all()
+        
+        mensagens = []
+        for chamado in chamados:
+            usuario = Usuario.query.get(chamado.usuario_id)
+            mensagens.append({
+                "id": chamado.id,
+                "usuario_id": chamado.usuario_id,
+                "nome": usuario.nome,
+                "email": usuario.email,
+                "titulo": chamado.titulo,
+                "descricao": chamado.descricao,
+                "categoria_classificada": chamado.categoria_classificada,
+                "prioridade": chamado.prioridade,
+                "status": chamado.status,
+                "data": chamado.data.isoformat()
+            })
+        
+        return jsonify({
+            "total": len(mensagens),
+            "mensagens": mensagens
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/suporte/<int:chamado_id>/responder', methods=['POST'])
+@jwt_required()
+def responder_chamado(chamado_id):
+    """Admin responde a um chamado de suporte"""
+    user_id = int(get_jwt_identity())
+    
+    if not verificar_admin(user_id):
+        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
+    
+    data = request.get_json()
+    if not data or 'resposta' not in data:
+        return jsonify({"error": "Campo 'resposta' é obrigatório"}), 400
+    
+    try:
+        chamado = ChamadoSuporte.query.get(chamado_id)
+        if not chamado:
+            return jsonify({"error": "Chamado não encontrado"}), 404
+        
+        # Atualizar status se fornecido
+        if 'status' in data:
+            chamado.status = data['status']
+        
+        # Criar notificação para o usuário
+        notificacao = Notificacao(
+            usuario_id=chamado.usuario_id,
+            tipo='suporte',
+            mensagem=f'Resposta do suporte para "{chamado.titulo}": {data["resposta"]}'
+        )
+        db.session.add(notificacao)
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Resposta enviada com sucesso",
+            "chamado": chamado.to_dict()
         }), 200
     except Exception as e:
         db.session.rollback()

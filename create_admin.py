@@ -17,8 +17,18 @@ def criar_admin():
     app = create_app()
     
     with app.app_context():
-        # Verificar se admin já existe
-        admin_existente = Usuario.query.filter_by(email='admin@sip.com').first()
+        # Verificar se admin já existe (usando campo criptografado)
+        from cryptography.fernet import Fernet
+        import base64
+
+        def get_encryption_key():
+            key = os.getenv('ENCRYPTION_KEY', 'default-encryption-key-change-in-production-32-chars')
+            return base64.urlsafe_b64encode(key.encode()[:32])
+
+        cipher = Fernet(get_encryption_key())
+        email_criptografado = cipher.encrypt('admin@sip.com'.encode()).decode()
+
+        admin_existente = Usuario.query.filter_by(email_criptografado=email_criptografado).first()
         if admin_existente:
             print("✓ Admin já existe no banco de dados")
             print(f"  Email: {admin_existente.email}")

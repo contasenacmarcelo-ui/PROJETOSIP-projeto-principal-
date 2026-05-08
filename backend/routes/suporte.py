@@ -34,13 +34,15 @@ def create_chamado():
         db.session.add(chamado)
         db.session.commit()
 
-        # Criar notificação
-        notificacao = Notificacao(
-            usuario_id=current_user_id,
-            tipo='suporte',
-            mensagem=f'Chamado de suporte aberto: {chamado.titulo}'
-        )
-        db.session.add(notificacao)
+        # Criar notificação para TODOS os admins, não para o usuário
+        admins = Usuario.query.filter_by(role='admin').all()
+        for admin in admins:
+            notificacao = Notificacao(
+                usuario_id=admin.id,
+                tipo='suporte',
+                mensagem=f'Novo chamado de suporte de {chamado.usuario.nome}: {chamado.titulo}'
+            )
+            db.session.add(notificacao)
         db.session.commit()
 
         return jsonify({
