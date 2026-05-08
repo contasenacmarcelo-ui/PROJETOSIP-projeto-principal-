@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from .database import create_app
 from .auth import jwt
@@ -11,6 +11,7 @@ from .routes.contato import contato_bp
 from .routes.notificacoes import notificacoes_bp
 from .routes.ml import ml_bp
 from .routes.admin import admin_bp
+import os
 
 app = create_app()
 CORS(app)
@@ -30,6 +31,11 @@ app.register_blueprint(admin_bp, url_prefix='/api')
 @app.route('/')
 def index():
     return jsonify({"message": "SIP Backend API", "status": "running"})
+
+# Servir arquivos estáticos
+@app.route('/public/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(os.path.join(app.root_path, '..', 'public'), filename)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

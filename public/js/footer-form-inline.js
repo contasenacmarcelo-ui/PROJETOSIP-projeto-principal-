@@ -101,29 +101,48 @@ if (formContatoInline) {
 
         if (temErro) return;
 
-        // Criar objeto de contato individual
+        // Criar objeto de contato para enviar ao backend
         const contato = {
-            id: Date.now(),
             nome: nome,
             email: email,
             telefone: telefone || '',
-            mensagem: mensagem,
-            data: new Date().toLocaleString('pt-BR'),
-            lida: false
+            assunto: 'Contato via Site',
+            mensagem: mensagem
         };
 
-        // Salvar no localStorage
-        salvarContato(contato);
+        // Enviar para o banco de dados
+        fetch('http://localhost:5000/api/contato', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(contato)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erro: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Mostrar toast de sucesso
+            if (typeof toastSucesso === 'function') {
+                toastSucesso('Mensagem enviada com sucesso! Entraremos em contato em breve.', 4000);
+            }
 
-        // Mostrar toast de sucesso
-        if (typeof toastSucesso === 'function') {
-            toastSucesso('Mensagem enviada com sucesso! Entraremos em contato em breve.', 4000);
-        }
+            console.log('Contato enviado para o servidor:', data);
 
-        console.log('Contato salvo no localStorage:', contato);
-
-        // Limpar formulário
-        limparFormInline();
+            // Limpar formulário
+            limparFormInline();
+        })
+        .catch(error => {
+            console.error('Erro ao enviar mensagem:', error);
+            if (typeof toastErro === 'function') {
+                toastErro('Erro ao enviar mensagem. Tente novamente.', 4000);
+            } else {
+                mostrarErroInline('erro-msg-inline', 'Erro ao enviar mensagem. Tente novamente.');
+            }
+        });
     });
 }
 

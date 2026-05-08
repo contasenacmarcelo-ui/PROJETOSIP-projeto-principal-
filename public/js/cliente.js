@@ -357,31 +357,52 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!valido) return;
 
-            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
-
-            const orcamento = {
-                id: Date.now(),
-                titulo: titulo,
-                descricao: descricao,
-                tipo: tipo,
-                prazo: prazo,
-                dataEnvio: new Date().toLocaleString('pt-BR'),
-                status: 'Pendente',
-                userEmail: user.email || null
+            const pedido = {
+                tipo_servico: tipo,
+                descricao: descricao
             };
 
-            salvarOrcamento(orcamento);
-            criarNotificacao(`Novo pedido enviado: "${titulo}"`, 'pedido');
-            atualizarDashboard();
-            
-            if (typeof toastSucesso === 'function') {
-                toastSucesso('Pedido enviado com sucesso!');
+            // Obter token se existir
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
-            setTimeout(() => {
-                modalNovoPedido.classList.remove('ativo');
-                limparFormNovoPedido();
-            }, 1500);
+            // ENVIAR PARA O SERVIDOR
+            fetch('http://localhost:5000/api/pedidos', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(pedido)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Pedido enviado com sucesso:', data);
+                criarNotificacao(`Novo pedido enviado: "${titulo}"`, 'pedido');
+                atualizarDashboard();
+                
+                if (typeof toastSucesso === 'function') {
+                    toastSucesso('Pedido enviado com sucesso!');
+                }
+
+                setTimeout(() => {
+                    modalNovoPedido.classList.remove('ativo');
+                    limparFormNovoPedido();
+                }, 1500);
+            })
+            .catch(error => {
+                console.error('Erro ao enviar pedido:', error);
+                if (typeof toastErro === 'function') {
+                    toastErro('Erro ao enviar pedido. Tente novamente.');
+                }
+            });
         });
     }
 
@@ -455,29 +476,52 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (!valido) return;
 
-            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
-
-            const suporte = {
-                id: Date.now(),
-                assunto: assunto,
-                mensagem: mensagem,
-                dataEnvio: new Date().toLocaleString('pt-BR'),
-                status: 'Aberto',
-                userEmail: user.email || null
+            const chamado = {
+                titulo: assunto,
+                descricao: mensagem
             };
 
-            salvarSuporte(suporte);
-            criarNotificacao(`Chamado de suporte aberto: "${assunto}"`, 'suporte');
-            atualizarDashboard();
-
-            if (typeof toastSucesso === 'function') {
-                toastSucesso('Chamado aberto com sucesso! Entraremos em contato em breve.');
+            // Obter token se existir
+            const token = localStorage.getItem('token');
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
-            setTimeout(() => {
-                modalSuporte.classList.remove('ativo');
-                limparFormSuporte();
-            }, 1500);
+            // ENVIAR PARA O SERVIDOR
+            fetch('http://localhost:5000/api/suporte', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(chamado)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Chamado enviado com sucesso:', data);
+                criarNotificacao(`Chamado de suporte aberto: "${assunto}"`, 'suporte');
+                atualizarDashboard();
+
+                if (typeof toastSucesso === 'function') {
+                    toastSucesso('Chamado aberto com sucesso! Entraremos em contato em breve.');
+                }
+
+                setTimeout(() => {
+                    modalSuporte.classList.remove('ativo');
+                    limparFormSuporte();
+                }, 1500);
+            })
+            .catch(error => {
+                console.error('Erro ao enviar chamado:', error);
+                if (typeof toastErro === 'function') {
+                    toastErro('Erro ao enviar chamado. Tente novamente.');
+                }
+            });
         });
     }
 

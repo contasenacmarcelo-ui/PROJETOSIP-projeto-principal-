@@ -1,4 +1,5 @@
 // ================= SELEÇÃO DE ELEMENTOS =================
+console.log("Inicializando cadastro...");
 const btn = document.querySelector(".btn-Entrar");
 
 const inputNome = document.querySelector(".Nome");
@@ -19,6 +20,13 @@ const erroTermos = document.querySelector(".erro-termos");
 // ⚠️ PROTEÇÃO (caso não exista no HTML)
 const termosContainer = document.querySelector(".termos-container");
 
+console.log("Elementos encontrados:");
+console.log("btn:", btn);
+console.log("inputNome:", inputNome);
+console.log("inputEmail:", inputEmail);
+console.log("inputSenha:", inputSenha);
+console.log("checkbox:", checkbox);
+
 // REGEX email
 const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -26,6 +34,7 @@ const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // ================= CLICK BOTÃO =================
 btn.addEventListener("click", function (event) {
     event.preventDefault();
+    console.log("Botão clicado!");
 
     let valido = true;
 
@@ -85,35 +94,51 @@ btn.addEventListener("click", function (event) {
 
     // ================= REDIRECIONAMENTO =================
     if (valido) {
-        // salvar usuário no localStorage
-        try {
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
+        console.log("Formulário válido, enviando dados...");
+        // Enviar usuário para o servidor
+        const novo = {
+            nome: inputNome ? inputNome.value.trim() : '',
+            email: inputEmail.value.trim().toLowerCase(),
+            telefone: inputTelefone ? inputTelefone.value.trim() : '',
+            senha: inputSenha.value
+        };
 
-            const emailLower = inputEmail.value.trim().toLowerCase();
-            // checar se já existe
-            if (users.some(u => u.email === emailLower)) {
+        console.log("Dados a enviar:", novo);
+
+        fetch('http://localhost:5000/api/auth/cadastro', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(novo)
+        })
+        .then(response => {
+            console.log("Resposta da API:", response.status, response.statusText);
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Dados recebidos:", data);
+            // Sucesso: armazenar token se fornecido
+            if (data.access_token) {
+                localStorage.setItem('token', data.access_token);
+            }
+            localStorage.setItem('user', JSON.stringify(data.user || novo));
+
+            // Redirecionar para login
+            window.location.href = 'login.html';
+        })
+        .catch(error => {
+            console.error('Erro ao cadastrar:', error);
+            if (error.error && error.error.includes('já cadastrado')) {
                 erroEmail.textContent = 'E-mail já cadastrado';
                 inputEmail.style.borderColor = '#ef4444';
-                return;
+            } else {
+                alert('Erro ao cadastrar. Tente novamente.');
             }
-
-            const novo = {
-                name: inputNome ? inputNome.value.trim() : '',
-                email: emailLower,
-                telefone: inputTelefone ? inputTelefone.value.trim() : '',
-                // NÃO é seguro para produção: apenas obfuscação básica
-                password: btoa(inputSenha.value)
-            };
-
-            users.push(novo);
-            localStorage.setItem('users', JSON.stringify(users));
-
-            // redirecionar para login
-            window.location.href = 'login.html';
-        } catch (e) {
-            console.error('Erro ao salvar usuário:', e);
-            window.location.href = 'login.html';
-        }
+        });
     }
 });
 

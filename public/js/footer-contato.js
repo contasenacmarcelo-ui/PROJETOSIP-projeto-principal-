@@ -83,24 +83,45 @@ function mostrarErro(elementId, mensagem) {
 }
 
 function enviarMensagem(nome, email, telefone, mensagem) {
-    // Aqui você pode integrar com um backend real
-    // Por enquanto, vamos simular o envio
-    
-    console.log('Mensagem de contato:');
-    console.log('Nome:', nome);
-    console.log('Email:', email);
-    console.log('Telefone:', telefone);
-    console.log('Mensagem:', mensagem);
+    const contato = {
+        nome: nome,
+        email: email,
+        telefone: telefone || '',
+        assunto: 'Contato via Site',
+        mensagem: mensagem
+    };
 
-    // Mostrar mensagem de sucesso
-    document.getElementById('formContatoFooter').style.display = 'none';
-    document.getElementById('sucessoContato').style.display = 'block';
+    // Enviar para o banco de dados
+    fetch('http://localhost:5000/api/contato', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(contato)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Erro: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Contato enviado com sucesso:', data);
 
-    // Fechar modal após 3 segundos
-    setTimeout(() => {
-        modalContato.classList.remove('ativo');
-        limparForm();
-    }, 3000);
+        // Mostrar mensagem de sucesso
+        document.getElementById('formContatoFooter').style.display = 'none';
+        document.getElementById('sucessoContato').style.display = 'block';
+
+        // Fechar modal após 3 segundos
+        setTimeout(() => {
+            modalContato.classList.remove('ativo');
+            limparForm();
+        }, 3000);
+    })
+    .catch(error => {
+        console.error('Erro ao enviar mensagem:', error);
+        mostrarErro('erro-mensagem', 'Erro ao enviar mensagem. Tente novamente.');
+    });
 }
 
 function limparForm() {

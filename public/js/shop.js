@@ -110,30 +110,56 @@ btnEnviar.addEventListener("click", () => {
         return;
     }
 
-    // CRIAR OBJETO INDIVIDUAL
+    // CRIAR OBJETO PARA ENVIAR AO SERVIDOR
     const orcamento = {
-        id: Date.now(),
-        titulo: titulo.value.trim(),
-        descricao: descricao.value.trim(),
         tipo: tipo.value,
-        prazo: prazo.value,
-        dataEnvio: new Date().toLocaleString('pt-BR'),
-        status: 'Pendente'
+        parametros: JSON.stringify({
+            titulo: titulo.value.trim(),
+            descricao: descricao.value.trim(),
+            prazo: prazo.value
+        })
     };
 
-    // SALVAR NO LOCALSTORAGE
-    salvarOrcamento(orcamento);
-    console.log('Orçamento salvo no localStorage:', orcamento);
-
-    // SUCESSO
-    if (typeof toastSucesso === 'function') {
-        toastSucesso('Solicitação enviada com sucesso!');
+    // Obter token se existir
+    const token = localStorage.getItem('token');
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
 
-    setTimeout(() => {
-        modal.classList.remove("ativo");
-        limparCampos();
-    }, 1500);
+    // ENVIAR PARA O SERVIDOR
+    fetch('http://localhost:5000/api/orcamentos', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(orcamento)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Erro: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Orçamento enviado para o servidor:', data);
+
+        // SUCESSO
+        if (typeof toastSucesso === 'function') {
+            toastSucesso('Solicitação enviada com sucesso!');
+        }
+
+        setTimeout(() => {
+            modal.classList.remove("ativo");
+            limparCampos();
+        }, 1500);
+    })
+    .catch(error => {
+        console.error('Erro ao enviar orçamento:', error);
+        if (typeof toastErro === 'function') {
+            toastErro('Erro ao enviar solicitação. Tente novamente.');
+        }
+    });
 });
 
 

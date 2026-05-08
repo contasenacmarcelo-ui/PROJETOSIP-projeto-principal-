@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Cadastro</title>
+</head>
+<body>
+    <h1>Teste de Cadastro</h1>
+    <form id="formCadastro">
+        <input type="text" id="nomeInput" class="Nome" placeholder="Nome" required><br>
+        <input type="email" class="input-E-mail" placeholder="E-mail" required><br>
+        <input type="text" class="input-telefone" placeholder="Telefone"><br>
+        <input type="password" class="input-senha" placeholder="Senha" required><br>
+        <input type="password" class="input-confirmar" placeholder="Confirmar Senha" required><br>
+        <input type="checkbox" id="checkbox"> Aceito os termos<br>
+        <button type="submit">Cadastrar</button>
+    </form>
+
+    <div id="resultado"></div>
+
+    <script>
+        document.getElementById('formCadastro').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nome = document.querySelector('.Nome').value;
+            const email = document.querySelector('.input-E-mail').value;
+            const telefone = document.querySelector('.input-telefone').value;
+            const senha = document.querySelector('.input-senha').value;
+            const confirmar = document.querySelector('.input-confirmar').value;
+            const termos = document.getElementById('checkbox').checked;
+
+            if (senha !== confirmar) {
+                alert('Senhas não coincidem');
+                return;
+            }
+
+            if (!termos) {
+                alert('Aceite os termos');
+                return;
+            }
+
+            const dados = {
+                nome: nome,
+                email: email,
+                telefone: telefone,
+                senha: senha
+            };
+
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/cadastro', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                const resultado = await response.json();
+                document.getElementById('resultado').innerHTML = `
+                    <h2>Resultado:</h2>
+                    <p>Status: ${response.status}</p>
+                    <pre>${JSON.stringify(resultado, null, 2)}</pre>
+                `;
+
+                if (response.ok) {
+                    alert('Cadastro realizado com sucesso!');
+                }
+            } catch (error) {
+                document.getElementById('resultado').innerHTML = `
+                    <h2>Erro:</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

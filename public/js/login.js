@@ -82,32 +82,48 @@ botao.addEventListener("click", function (event) {
         valido = false;
     }
 
-    // SE TUDO OK -> validar credenciais contra localStorage
+    // SE TUDO OK -> validar credenciais contra o servidor
     if (valido) {
-        try {
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            const emailLower = emailInput.value.trim().toLowerCase();
+        const credenciais = {
+            email: emailInput.value.trim().toLowerCase(),
+            senha: senhaInput.value
+        };
 
-            const usuario = users.find(u => u.email === emailLower);
-            if (!usuario) {
+        fetch('http://localhost:5000/api/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(credenciais)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Sucesso: armazenar token e dados do usuário
+            if (data.access_token) {
+                localStorage.setItem('token', data.access_token);
+            }
+            localStorage.setItem('loggedInUser', JSON.stringify(data.user || { email: credenciais.email }));
+
+            // Redirecionar para dashboard/cliente
+            window.location.href = 'cliente.html';
+        })
+        .catch(error => {
+            console.error('Erro ao fazer login:', error);
+            if (error.error && error.error.includes('não cadastrado')) {
                 erroEmail.textContent = 'E-mail não cadastrado';
                 emailInput.style.border = '1px solid #ef4444';
-                return;
-            }
-
-            if (usuario.password !== btoa(senhaInput.value)) {
+            } else if (error.error && error.error.includes('incorreta')) {
                 erroSenha.textContent = 'Senha incorreta';
                 senhaInput.style.border = '1px solid #ef4444';
-                return;
+            } else {
+                alert('Erro ao fazer login. Tente novamente.');
             }
-
-            // sucesso: marcar usuário como logado e redirecionar
-            localStorage.setItem('loggedInUser', JSON.stringify({ email: usuario.email, name: usuario.name }));
-            window.location.href = 'cliente.html';
-        } catch (e) {
-            console.error('Erro ao verificar credenciais:', e);
-            window.location.href = 'cliente.html';
-        }
+        });
     }
 
 });
