@@ -38,22 +38,27 @@
     <main class="card-container">
         <div class="card-box">
             <h1 class="title">Acesse sua conta</h1>
+            <section class="warning-box">
+                <p>
+                    Atenção: se o Chrome sugerir salvar a senha, não clique em recarregar a página. Use o botão ENTRAR para acessar o sistema.
+                </p>
+            </section>
             <section class="label-01">
                 <p class="E-mail">E-mail</p>
-                <input class="input-E-mail" placeholder="E-mail" type="text">
+                <input autocomplete="username" class="input-E-mail" placeholder="E-mail" type="text">
                 <span class="erro-email"></span>
             </section>
             <section class="label-02">
                 <p class="senha">Senha</p>
 
                 <div class="senha-box">
-                    <input class="input-senha" placeholder="Senha" type="password">
+                    <input autocomplete="current-password" class="input-senha" placeholder="Senha" type="password" spellcheck="false">
                     <i class="bi bi-eye" id="toggleSenha"></i>
                 </div>
 
                 <span class="erro-senha"></span>
             </section>
-            <button class="btn-Entrar">ENTRAR</button>
+            <button class="btn-Entrar" type="button">ENTRAR</button>
 
             <p class="txt2">Não tem conta? <a class="Cadastre-se-txt" href="cadastro.html">Cadastre-se</a></p>
         </div>

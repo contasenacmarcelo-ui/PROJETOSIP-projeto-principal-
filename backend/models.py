@@ -2,18 +2,9 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 import argon2
-from cryptography.fernet import Fernet
-import os
-import base64
+from .crypto import encrypt_value, decrypt_value
 
 db = SQLAlchemy()
-
-# Gerar chave para criptografia AES
-def get_encryption_key():
-    key = os.getenv('ENCRYPTION_KEY', 'default-encryption-key-change-in-production-32-chars')
-    return base64.urlsafe_b64encode(key.encode()[:32])
-
-cipher = Fernet(get_encryption_key())
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -36,34 +27,45 @@ class Usuario(db.Model):
 
     @property
     def email(self):
-        return cipher.decrypt(self.email_criptografado.encode()).decode()
+        return decrypt_value(self.email_criptografado)
 
     @email.setter
     def email(self, value):
-        self.email_criptografado = cipher.encrypt(value.encode()).decode()
+        self.email_criptografado = encrypt_value(value)
 
     @property
     def telefone(self):
         if self.telefone_criptografado:
-            return cipher.decrypt(self.telefone_criptografado.encode()).decode()
+            return decrypt_value(self.telefone_criptografado)
         return None
 
     @telefone.setter
     def telefone(self, value):
         if value:
-            self.telefone_criptografado = cipher.encrypt(value.encode()).decode()
+            self.telefone_criptografado = encrypt_value(value)
         else:
             self.telefone_criptografado = None
 
     def set_senha(self, senha):
         # Dupla camada: Argon2 hash
-        self.senha_hash = argon2.hash_password(senha.encode(), argon2.Type.ID).decode()
+        ph = argon2.PasswordHasher()
+        self.senha_hash = ph.hash(senha)
 
     def check_senha(self, senha):
         try:
-            return argon2.verify_password(senha.encode(), self.senha_hash.encode())
+            # Tentar Argon2 primeiro (novos usuários)
+            ph = argon2.PasswordHasher()
+            ph.verify(self.senha_hash, senha)
+            return True
         except argon2.exceptions.VerifyMismatchError:
             return False
+        except Exception:
+            # Se não for Argon2, tentar werkzeug (usuários antigos)
+            try:
+                from werkzeug.security import check_password_hash
+                return check_password_hash(self.senha_hash, senha)
+            except:
+                return False
 
     @property
     def total_gasto(self):

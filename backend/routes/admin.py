@@ -1,27 +1,17 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import db, Usuario, Pedido, Orcamento, ChamadoSuporte, Notificacao
+from ..utils import require_admin
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
 admin_bp = Blueprint('admin', __name__)
 
-def verificar_admin(user_id):
-    """Verifica se o usuário é admin"""
-    usuario = Usuario.query.get(user_id)
-    if not usuario or usuario.role != 'admin':
-        return False
-    return True
-
 @admin_bp.route('/admin/dashboard', methods=['GET'])
 @jwt_required()
+@require_admin()
 def get_dashboard():
     """Retorna estatísticas do dashboard"""
-    user_id = int(get_jwt_identity())
-    
-    if not verificar_admin(user_id):
-        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
-    
     try:
         # Estatísticas gerais
         total_usuarios = Usuario.query.count()
@@ -85,13 +75,9 @@ def get_dashboard():
 
 @admin_bp.route('/admin/clientes', methods=['GET'])
 @jwt_required()
+@require_admin()
 def get_clientes():
     """Retorna lista de todos os clientes com seus dados"""
-    user_id = int(get_jwt_identity())
-    
-    if not verificar_admin(user_id):
-        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
-    
     try:
         usuarios = Usuario.query.filter_by(role='user').all()
         
@@ -131,13 +117,9 @@ def get_clientes():
 
 @admin_bp.route('/admin/cliente/<int:cliente_id>', methods=['GET'])
 @jwt_required()
+@require_admin()
 def get_cliente_detalhes(cliente_id):
     """Retorna detalhes completos de um cliente"""
-    user_id = int(get_jwt_identity())
-    
-    if not verificar_admin(user_id):
-        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
-    
     try:
         usuario = Usuario.query.get(cliente_id)
         
@@ -172,13 +154,9 @@ def get_cliente_detalhes(cliente_id):
 
 @admin_bp.route('/admin/relatorio/ml', methods=['GET'])
 @jwt_required()
+@require_admin()
 def get_relatorio_ml():
     """Retorna relatório de desempenho dos modelos ML"""
-    user_id = int(get_jwt_identity())
-    
-    if not verificar_admin(user_id):
-        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
-    
     try:
         # Análise de categorias de chamados (classificador)
         categorias = db.session.query(
@@ -241,13 +219,9 @@ def get_relatorio_ml():
 
 @admin_bp.route('/admin/usuario/<int:usuario_id>/promocao', methods=['POST'])
 @jwt_required()
+@require_admin()
 def promover_admin(usuario_id):
     """Promove um usuário a admin"""
-    user_id = int(get_jwt_identity())
-    
-    if not verificar_admin(user_id):
-        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
-    
     try:
         usuario = Usuario.query.get(usuario_id)
         
@@ -267,13 +241,9 @@ def promover_admin(usuario_id):
 
 @admin_bp.route('/admin/suporte/mensagens', methods=['GET'])
 @jwt_required()
+@require_admin()
 def get_mensagens_suporte():
     """Retorna todas as mensagens de suporte para admin"""
-    user_id = int(get_jwt_identity())
-    
-    if not verificar_admin(user_id):
-        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
-    
     try:
         chamados = ChamadoSuporte.query.all()
         
@@ -302,13 +272,9 @@ def get_mensagens_suporte():
 
 @admin_bp.route('/admin/suporte/<int:chamado_id>/responder', methods=['POST'])
 @jwt_required()
+@require_admin()
 def responder_chamado(chamado_id):
     """Admin responde a um chamado de suporte"""
-    user_id = int(get_jwt_identity())
-    
-    if not verificar_admin(user_id):
-        return jsonify({"error": "Acesso negado. Apenas admin."}), 403
-    
     data = request.get_json()
     if not data or 'resposta' not in data:
         return jsonify({"error": "Campo 'resposta' é obrigatório"}), 400
@@ -334,6 +300,87 @@ def responder_chamado(chamado_id):
         return jsonify({
             "message": "Resposta enviada com sucesso",
             "chamado": chamado.to_dict()
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/pedidos', methods=['GET'])
+@jwt_required()
+@require_admin()
+def get_pedidos():
+    """Retorna lista de todos os pedidos"""
+    try:
+        pedidos = Pedido.query.all()
+        pedidos_data = []
+        
+        for pedido in pedidos:
+            usuario = Usuario.query.get(pedido.usuario_id)
+            pedidos_data.append({
+                "id": pedido.id,
+                "usuario_id": pedido.usuario_id,
+                "usuario_nome": usuario.nome if usuario else "Usuário não encontrado",
+                "usuario_email": usuario.email if usuario else "",
+                "servico": pedido.servico,
+                "descricao": pedido.descricao,
+                "status": pedido.status,
+                "valor_estimado": float(pedido.valor_estimado) if pedido.valor_estimado else None,
+                "data_criacao": pedido.data_criacao.isoformat() if pedido.data_criacao else None
+            })
+        
+        return jsonify({"pedidos": pedidos_data}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/pedido/<int:pedido_id>', methods=['GET'])
+@jwt_required()
+@require_admin()
+def get_pedido(pedido_id):
+    """Retorna detalhes de um pedido específico"""
+    try:
+        pedido = Pedido.query.get(pedido_id)
+        if not pedido:
+            return jsonify({"error": "Pedido não encontrado"}), 404
+        
+        usuario = Usuario.query.get(pedido.usuario_id)
+        
+        return jsonify({
+            "id": pedido.id,
+            "usuario_id": pedido.usuario_id,
+            "usuario_nome": usuario.nome if usuario else "Usuário não encontrado",
+            "usuario_email": usuario.email if usuario else "",
+            "servico": pedido.servico,
+            "descricao": pedido.descricao,
+            "status": pedido.status,
+            "valor_estimado": float(pedido.valor_estimado) if pedido.valor_estimado else None,
+            "data_criacao": pedido.data_criacao.isoformat() if pedido.data_criacao else None
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@admin_bp.route('/admin/pedido/<int:pedido_id>/status', methods=['PUT'])
+@jwt_required()
+@require_admin()
+def update_pedido_status(pedido_id):
+    """Atualiza o status de um pedido"""
+    data = request.get_json()
+    if not data or 'status' not in data:
+        return jsonify({"error": "Campo 'status' é obrigatório"}), 400
+    
+    try:
+        pedido = Pedido.query.get(pedido_id)
+        if not pedido:
+            return jsonify({"error": "Pedido não encontrado"}), 404
+        
+        pedido.status = data['status']
+        db.session.commit()
+        
+        return jsonify({
+            "message": "Status atualizado com sucesso",
+            "pedido": {
+                "id": pedido.id,
+                "status": pedido.status
+            }
         }), 200
     except Exception as e:
         db.session.rollback()

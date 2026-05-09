@@ -14,111 +14,179 @@
 </head>
 
 <body>
-    <header>
-        <section class="side-left">
-            <a href="index.html"><img src="../assets/images/acronimo_sip_iluminado_em_azul.png" alt="Logo"></a>
-            <span>Sistema Integrado de Portfolio</span>
-        </section>
-        <section class="side-right">
-            <a href="login.html">Entrar</a>
-            <a href="cadastro.html">Cadastrar</a>
-        </section>
-    <div class="nav-celular">
-            <div class="hamburger" id="btn-menu">
-                <span></span>
-                <span></span>
-                <span></span>
+    <div class="admin-shell">
+        <aside class="admin-sidebar">
+            <div class="sidebar-brand">
+                <img src="../assets/images/acronimo_sip_iluminado_em_azul.png" alt="Logo SIP">
+                <div>
+                    <span>Administrador</span>
+                    <strong>SIP</strong>
+                </div>
             </div>
-            <nav class="menu-mobile" id="menu-mobile">
-                <a href="login.html">Entrar</a>
-                <a href="cadastro.html">Cadastrar</a>
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="active"><i class="bi bi-speedometer2"></i>Dashboard</a>
+                <a href="#clientes"><i class="bi bi-people-fill"></i>Clientes</a>
+                <a href="#pedidos"><i class="bi bi-clipboard-check"></i>Pedidos</a>
+                <a href="#suporte"><i class="bi bi-headset"></i>Suporte</a>
+                <a href="#ml"><i class="bi bi-robot"></i>ML</a>
             </nav>
+            <div class="sidebar-footer">
+                <button class="btn-logout" onclick="logout()">
+                    <i class="bi bi-box-arrow-right"></i>
+                    Sair da conta
+                </button>
+            </div>
+        </aside>
+        <div class="admin-content">
+            <header class="admin-header">
+                <div>
+                    <p class="eyebrow">Painel administrativo</p>
+                    <h1>Bem-vindo, <span id="admin-nome">Administrador</span></h1>
+                </div>
+                <button class="btn-logout header-logout" onclick="logout()">
+                    <i class="bi bi-box-arrow-right"></i>
+                    Sair
+                </button>
+            </header>
+            <div class="admin-warning">
+                <p>Se o Chrome oferecer salvar sua senha, ignore esta opção. Recarregar a página pode encerrar sua sessão e exigir novo login.</p>
+            </div>
+            <section class="dashboard-overview" id="dashboard">
+                <div class="overview-card">
+                    <div class="overview-icon overview-users"><i class="bi bi-people-fill"></i></div>
+                    <div>
+                        <p>Total de usuários</p>
+                        <strong id="total-usuarios">0</strong>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-icon overview-orders"><i class="bi bi-clipboard-check"></i></div>
+                    <div>
+                        <p>Total de pedidos</p>
+                        <strong id="total-pedidos">0</strong>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-icon overview-ml"><i class="bi bi-robot"></i></div>
+                    <div>
+                        <p>Modelos ML ativos</p>
+                        <strong id="total-orcamentos">0</strong>
+                    </div>
+                </div>
+                <div class="overview-card">
+                    <div class="overview-icon overview-support"><i class="bi bi-headset"></i></div>
+                    <div>
+                        <p>Chamados abertos</p>
+                        <strong id="total-chamados">0</strong>
+                    </div>
+                </div>
+            </section>
+            <section class="section section-table" id="clientes">
+                <div class="section-header">
+                    <div>
+                        <h2>Clientes</h2>
+                        <p>Lista de clientes cadastrados e suas informações.</p>
+                    </div>
+                    <button class="btn-add" onclick="abrirModal()">
+                        <i class="bi bi-person-plus"></i>
+                        Novo usuário
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome</th>
+                                <th>E-mail</th>
+                                <th>Status</th>
+                                <th>Pedidos</th>
+                                <th>Chamados</th>
+                                <th>Total gasto</th>
+                                <th>Último login</th>
+                                <th>Verificado</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-body"></tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="section cards-row" id="pedidos">
+                <div class="section-header">
+                    <div>
+                        <h2>Pedidos</h2>
+                        <p>Pedidos recentes e status de entrega.</p>
+                    </div>
+                </div>
+                <div id="pedidos-container" class="cards-grid-large"></div>
+            </section>
+            <section class="section cards-row" id="suporte">
+                <div class="section-header">
+                    <div>
+                        <h2>Mensagens de suporte</h2>
+                        <p>Chamados de suporte abertos por clientes.</p>
+                    </div>
+                </div>
+                <div id="suporte-container" class="cards-grid-large"></div>
+            </section>
+            <section class="section cards-row" id="ml">
+                <div class="section-header">
+                    <div>
+                        <h2>Modelos de Machine Learning</h2>
+                        <p>Visão geral dos modelos e resultados esperados.</p>
+                    </div>
+                </div>
+                <div id="ml-container" class="cards-grid-large"></div>
+            </section>
+            <div class="admin-panel-footer">
+                <p>Dados atualizados dinamicamente a partir do backend.</p>
+            </div>
         </div>
-    </header>
-    <main>
-        <div class="divbotaun">
-            <button class="btn-add" onclick="abrirModal()">
-                + Novo Usuário
-            </button>
-        </div>
-        <div class="modal" id="modal">
-            <div class="modal-content">
-                <span class="fechar" onclick="fecharModal()">&times;</span>
-
-                <h2>Novo Usuário</h2>
-
+    </div>
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <span class="fechar" onclick="fecharModal()">&times;</span>
+            <h2>Novo Usuário</h2>
+            <div class="form-grid">
                 <input type="text" id="nome" placeholder="Nome">
                 <input type="email" id="email" placeholder="E-mail">
                 <input type="text" id="telefone" placeholder="Telefone">
-
                 <select id="status">
                     <option value="Ativo">Ativo</option>
                     <option value="Pendente">Pendente</option>
                     <option value="Em aberto">Em aberto</option>
                 </select>
-
-                <button onclick="adicionarUsuario()">Adicionar</button>
             </div>
+            <button class="btn-add" onclick="adicionarUsuario()">Adicionar</button>
         </div>
-
-        <!-- MODAL DETALHES DO USUÁRIO -->
-        <div class="modal" id="modal-detalhes">
-            <div class="modal-content modal-lg">
-                <span class="fechar" onclick="fecharModalDetalhes()">&times;</span>
-                <h2>Detalhes do Usuário</h2>
-
-                <div class="detalhes-secao">
-                    <h3><i class="bi bi-person"></i> Dados Pessoais</h3>
-                    <p><strong>Nome:</strong> <span id="det-nome">—</span></p>
-                    <p><strong>E-mail:</strong> <span id="det-email">—</span></p>
-                    <p><strong>Telefone:</strong> <span id="det-telefone">—</span></p>
-                    <p><strong>Status:</strong> <span id="det-status">—</span></p>
+    </div>
+    <div class="modal" id="modal-detalhes">
+        <div class="modal-content modal-lg">
+            <span class="fechar" onclick="fecharModalDetalhes()">&times;</span>
+            <h2>Detalhes do Usuário</h2>
+            <div class="detalhes-secao">
+                <h3><i class="bi bi-person"></i> Dados Pessoais</h3>
+                <p><strong>Nome:</strong> <span id="det-nome">—</span></p>
+                <p><strong>E-mail:</strong> <span id="det-email">—</span></p>
+                <p><strong>Telefone:</strong> <span id="det-telefone">—</span></p>
+                <p><strong>Status:</strong> <span id="det-status">—</span></p>
+            </div>
+            <div class="detalhes-secao">
+                <h3><i class="bi bi-clipboard-check"></i> Pedidos / Projetos</h3>
+                <div id="det-pedidos" class="detalhes-lista">
+                    <p class="sem-dados">Nenhum pedido encontrado.</p>
                 </div>
-
-                <div class="detalhes-secao">
-                    <h3><i class="bi bi-clipboard-check"></i> Pedidos / Projetos</h3>
-                    <div id="det-pedidos" class="detalhes-lista">
-                        <p class="sem-dados">Nenhum pedido encontrado.</p>
-                    </div>
-                </div>
-
-                <div class="detalhes-secao">
-                    <h3><i class="bi bi-headset"></i> Chamados de Suporte</h3>
-                    <div id="det-suportes" class="detalhes-lista">
-                        <p class="sem-dados">Nenhum chamado encontrado.</p>
-                    </div>
+            </div>
+            <div class="detalhes-secao">
+                <h3><i class="bi bi-headset"></i> Chamados de Suporte</h3>
+                <div id="det-suportes" class="detalhes-lista">
+                    <p class="sem-dados">Nenhum chamado encontrado.</p>
                 </div>
             </div>
         </div>
-
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Nome</th>
-                        <th>E-mail</th>
-                        <th>Status</th>
-                        <th>Pedidos</th>
-                        <th>Chamados</th>
-                        <th>Total Gasto</th>
-                        <th>Último Login</th>
-                        <th>E-mail Verificado</th>
-                        <th>Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="tabela-body"></tbody>
-            </table>
-        </div>
-
-        <!-- SEÇÃO DE MENSAGENS DE SUPORTE -->
-        <div class="suporte-section">
-            <h2><i class="bi bi-headset"></i> Mensagens de Suporte</h2>
-            <div id="suporte-container" class="suporte-container">
-                <!-- Mensagens serão carregadas aqui -->
-            </div>
-        </div>
-    </main>
-   <script src="../js/admia.js"></script>
+    </div>
+    <script src="../js/shared.js"></script>
+    <script src="../js/admia.js"></script>
 </body>
 </html>

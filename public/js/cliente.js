@@ -1,8 +1,6 @@
 // Perfil do Cliente — menu suspenso com dados do usuário logado
 // + Notificações + Dashboard Estatísticas
 
-const API_BASE = 'http://localhost:5000/api';
-
 document.addEventListener('DOMContentLoaded', function () {
     // ========== PERFIL ==========
     const btnProfile = document.getElementById("btn-profile");
@@ -13,7 +11,6 @@ document.addEventListener('DOMContentLoaded', function () {
     let chamadosServer = [];
     let notificacoesServer = [];
 
-    const getToken = () => localStorage.getItem('access_token');
     const token = getToken();
     if (!token) {
         window.location.href = 'login.html';
@@ -85,13 +82,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnMarcarTodas = document.getElementById('marcarTodasLidas');
 
     async function fetchPedidos() {
-        const token = getToken();
-        if (!token) return;
+        if (!getToken()) return;
 
         try {
-            const response = await fetch(`${API_BASE}/pedidos`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await apiFetch('/pedidos');
             if (response.ok) {
                 pedidosServer = await response.json();
                 atualizarDashboard();
@@ -102,13 +96,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function fetchSuportes() {
-        const token = getToken();
-        if (!token) return;
+        if (!getToken()) return;
 
         try {
-            const response = await fetch(`${API_BASE}/chamados`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await apiFetch('/chamados');
             if (response.ok) {
                 chamadosServer = await response.json();
                 atualizarDashboard();
@@ -119,13 +110,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function fetchNotificacoes() {
-        const token = getToken();
-        if (!token) return;
+        if (!getToken()) return;
 
         try {
-            const response = await fetch(`${API_BASE}/notificacoes`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await apiFetch('/notificacoes');
             if (response.ok) {
                 notificacoesServer = await response.json();
                 atualizarBadge();
@@ -137,13 +125,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function marcarNotificacaoLida(id) {
-        const token = getToken();
-        if (!token) return;
+        if (!getToken()) return;
 
         try {
-            const response = await fetch(`${API_BASE}/notificacoes/${id}/lido`, {
+            const response = await apiFetch(`/notificacoes/${id}/lido`, {
                 method: 'PUT',
-                headers: { Authorization: `Bearer ${token}` }
+                contentType: false
             });
             if (response.ok) {
                 await fetchNotificacoes();
@@ -413,13 +400,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 prazo: prazo
             };
 
-            const token = getToken();
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
+            const headers = apiHeaders(true);
 
             // ENVIAR PARA O SERVIDOR
             fetch(`${API_BASE}/pedidos`, {
@@ -533,13 +514,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 descricao: mensagem
             };
 
-            const token = getToken();
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
+            const headers = apiHeaders(true);
 
             // ENVIAR PARA O SERVIDOR
             fetch(`${API_BASE}/suporte`, {
@@ -602,5 +577,12 @@ function mostrarErroCliente(id, msg) {
         el.textContent = msg;
         el.classList.add('show');
     }
+}
+
+// Logout
+function logout() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('loggedInUser');
+    window.location.href = '/public/pages/login.html';
 }
 

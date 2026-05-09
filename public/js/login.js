@@ -109,8 +109,12 @@ botao.addEventListener("click", function (event) {
             }
             localStorage.setItem('loggedInUser', JSON.stringify(data.user || { email: credenciais.email }));
 
-            // Redirecionar para dashboard/cliente
-            window.location.href = 'cliente.html';
+            // Redirecionar baseado no role do usuário
+            if (data.user && data.user.role === 'admin') {
+                window.location.href = '/public/pages/admia.html'; // Painel admin
+            } else {
+                window.location.href = '/public/pages/cliente.html'; // Dashboard cliente
+            }
         })
         .catch(error => {
             console.error('Erro ao fazer login:', error);

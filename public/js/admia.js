@@ -1,5 +1,3 @@
-const API_BASE = 'http://localhost:5000/api';
-let token = localStorage.getItem('access_token');
 let usuarioAtual = null;
 
 // Verificar autenticação ao carregar a página
@@ -12,28 +10,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Verificar se é admin
 async function verificarAutenticacao() {
+    const token = getToken();
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = '/public/pages/login.html';
         return;
     }
 
     try {
-        const response = await fetch(`${API_BASE}/me`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
+        const response = await apiFetch('/me', { contentType: false });
+
         if (response.ok) {
             usuarioAtual = await response.json();
             if (usuarioAtual.role !== 'admin') {
                 alert('Acesso negado! Apenas administradores.');
-                window.location.href = 'index.html';
+                window.location.href = '/public/pages/index.html';
+                return;
+            }
+
+            const adminNome = document.getElementById('admin-nome');
+            if (adminNome) {
+                adminNome.textContent = usuarioAtual.nome || 'Administrador';
             }
         } else {
             localStorage.removeItem('access_token');
-            window.location.href = 'login.html';
+            window.location.href = '/public/pages/login.html';
         }
     } catch (error) {
         console.error('Erro ao verificar autenticação:', error);
+        window.location.href = '/public/pages/login.html';
     }
 }
 
@@ -56,12 +60,13 @@ function initializeAdmin() {
     carregarDashboard();
     carregarClientes();
     carregarMensagensSuporte();
+    carregarModelosML();
+    carregarPedidos();
 
     // Evento do botão de logout
-    const logoutBtn = document.querySelector('.logout-btn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logout);
-    }
+    document.querySelectorAll('.btn-logout, .header-logout').forEach(btn => {
+        btn.addEventListener('click', logout);
+    });
 }
 
 function setupModals() {
@@ -105,7 +110,7 @@ function setupModals() {
 async function carregarDashboard() {
     try {
         const response = await fetch(`${API_BASE}/admin/dashboard`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: apiHeaders(false)
         });
 
         if (response.ok) {
@@ -136,7 +141,7 @@ function atualizarDashboard(data) {
 async function carregarClientes() {
     try {
         const response = await fetch(`${API_BASE}/admin/clientes`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: apiHeaders(false)
         });
 
         if (response.ok) {
@@ -190,7 +195,7 @@ function exibirClientes(clientes) {
 async function verDetalhes(clienteId) {
     try {
         const response = await fetch(`${API_BASE}/admin/cliente/${clienteId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: apiHeaders(false)
         });
 
         if (response.ok) {
@@ -263,7 +268,7 @@ function exibirModalDetalhes(data) {
 async function carregarRelatorioML() {
     try {
         const response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: apiHeaders(false)
         });
 
         if (response.ok) {
@@ -386,17 +391,11 @@ window.adicionarUsuario = async function() {
     }
 }
 
-// Logout
-function logout() {
-    localStorage.removeItem('access_token');
-    window.location.href = 'login.html';
-}
-
 // Carregar mensagens de suporte
 async function carregarMensagensSuporte() {
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/mensagens`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: apiHeaders(false)
         });
 
         if (response.ok) {
@@ -494,6 +493,160 @@ async function marcarResolvido(chamadoId) {
         console.error('Erro:', error);
         alert('Erro ao marcar como resolvido');
     }
+}
+
+// Carregar modelos de Machine Learning
+async function carregarModelosML() {
+    const modelos = [
+        {
+            nome: 'Classificador de Suporte',
+            funcao: 'Classifica chamados de suporte por categoria e urgência',
+            arquivo: 'classificador_suporte.py'
+        },
+        {
+            nome: 'Clustering de Clientes',
+            funcao: 'Agrupa clientes por comportamento e preferências',
+            arquivo: 'clustering_clientes.py'
+        },
+        {
+            nome: 'Estimador de Orçamento',
+            funcao: 'Prevê custos de projetos baseado em histórico',
+            arquivo: 'estimador_orcamento.py'
+        },
+        {
+            nome: 'Extrator de Tags',
+            funcao: 'Identifica tags relevantes em descrições de projetos',
+            arquivo: 'extrator_tags.py'
+        },
+        {
+            nome: 'Recomendador de Serviços',
+            funcao: 'Sugere serviços baseado no perfil do cliente',
+            arquivo: 'recomendador_servicos.py'
+        }
+    ];
+
+    const container = document.getElementById('ml-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    modelos.forEach(modelo => {
+        const card = document.createElement('div');
+        card.className = 'ml-card';
+        card.innerHTML = `
+            <h3>${modelo.nome}</h3>
+            <p><strong>Função:</strong> ${modelo.funcao}</p>
+            <p><strong>Arquivo:</strong> ${modelo.arquivo}</p>
+            <button onclick="testarModelo('${modelo.arquivo}')" class="btn-testar">
+                <i class="bi bi-play-circle"></i> Testar Modelo
+            </button>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Carregar todos os pedidos
+async function carregarPedidos() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/pedidos`, {
+            headers: apiHeaders(false)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            exibirPedidos(data.pedidos);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar pedidos:', error);
+    }
+}
+
+// Exibir pedidos
+function exibirPedidos(pedidos) {
+    const container = document.getElementById('pedidos-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (pedidos.length === 0) {
+        container.innerHTML = '<p class="sem-dados">Nenhum pedido encontrado.</p>';
+        return;
+    }
+
+    pedidos.forEach(pedido => {
+        const card = document.createElement('div');
+        card.className = 'pedido-card';
+        const dataCriacao = new Date(pedido.data_criacao).toLocaleDateString('pt-BR');
+        const statusClass = pedido.status.toLowerCase().replace(' ', '-');
+        
+        card.innerHTML = `
+            <div class="pedido-header">
+                <h3>Pedido #${pedido.id}</h3>
+                <span class="status ${statusClass}">${pedido.status}</span>
+            </div>
+            <div class="pedido-info">
+                <p><strong>Cliente:</strong> ${pedido.usuario_nome} (${pedido.usuario_email})</p>
+                <p><strong>Serviço:</strong> ${pedido.servico}</p>
+                <p><strong>Descrição:</strong> ${pedido.descricao}</p>
+                <p><strong>Orçamento Estimado:</strong> R$ ${pedido.valor_estimado ? pedido.valor_estimado.toFixed(2) : 'N/A'}</p>
+                <p><strong>Data:</strong> ${dataCriacao}</p>
+            </div>
+            <div class="pedido-acoes">
+                <button onclick="verDetalhesPedido(${pedido.id})" class="btn-detalhes">
+                    <i class="bi bi-eye"></i> Ver Detalhes
+                </button>
+                <button onclick="atualizarStatusPedido(${pedido.id}, 'em_andamento')" class="btn-status">
+                    <i class="bi bi-play"></i> Iniciar
+                </button>
+                <button onclick="atualizarStatusPedido(${pedido.id}, 'concluido')" class="btn-status">
+                    <i class="bi bi-check-circle"></i> Concluir
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Ver detalhes do pedido
+async function verDetalhesPedido(pedidoId) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/pedido/${pedidoId}`, {
+            headers: apiHeaders(false)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            alert(`Detalhes do Pedido #${pedidoId}:\n\nCliente: ${data.usuario_nome}\nServiço: ${data.servico}\nStatus: ${data.status}\nValor: R$ ${data.valor_estimado || 'N/A'}`);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar detalhes do pedido:', error);
+    }
+}
+
+// Atualizar status do pedido
+async function atualizarStatusPedido(pedidoId, novoStatus) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/pedido/${pedidoId}/status`, {
+            method: 'PUT',
+            headers: apiHeaders(),
+            body: JSON.stringify({ status: novoStatus })
+        });
+
+        if (response.ok) {
+            alert('Status atualizado com sucesso!');
+            carregarPedidos();
+        } else {
+            alert('Erro ao atualizar status');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao atualizar status');
+    }
+}
+
+// Testar modelo (placeholder)
+function testarModelo(arquivo) {
+    alert(`Teste do modelo ${arquivo} não implementado ainda.`);
 }
 
 

@@ -222,6 +222,23 @@ input:focus {
     box-shadow: 0 5px 20px rgba(0, 156, 134, 0.4);
 }
 
+/* Aviso do gerenciador de senha */
+.warning-box {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #d1e8ff;
+    padding: 14px 16px;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.warning-box p {
+    margin: 0;
+}
+
 /* Links e Textos de suporte */
 .txt1, .txt2 {
     font-size: 13px;
