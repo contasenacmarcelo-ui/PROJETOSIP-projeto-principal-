@@ -23,9 +23,11 @@ async function verificarAutenticacao() {
             usuarioAtual = await response.json();
             if (usuarioAtual.role !== 'admin') {
                 alert('Acesso negado! Apenas administradores.');
-                window.location.href = '/public/pages/index.html';
+                // Não redirecionar para a página de login durante o mesmo fluxo de carregamento
+                // (evita loop/reload quando token é setado/recuperado pelo navegador)
                 return;
             }
+
 
             const adminNome = document.getElementById('admin-nome');
             if (adminNome) {

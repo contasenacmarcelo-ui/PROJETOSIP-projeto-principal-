@@ -5,9 +5,20 @@ const botao = document.querySelector(".btn-Entrar");
 const emailInput = document.querySelector(".input-E-mail");
 const senhaInput = document.querySelector(".input-senha");
 
+
 // ERROS
 const erroEmail = document.querySelector(".erro-email");
 const erroSenha = document.querySelector(".erro-senha");
+
+// Evitar submit automático/duplo causado por navegador/Chrome
+const form = document.querySelector('form') || null;
+if (form) {
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    });
+}
 
 // OLHO SENHA
 const toggle = document.getElementById("toggleSenha");

@@ -45,20 +45,20 @@
             </section>
             <section class="label-01">
                 <p class="E-mail">E-mail</p>
-                <input autocomplete="username" class="input-E-mail" placeholder="E-mail" type="text">
+<input autocomplete="off" name="login-email" class="input-E-mail" placeholder="E-mail" type="email" spellcheck="false" autocapitalize="none" inputmode="email">
                 <span class="erro-email"></span>
             </section>
             <section class="label-02">
                 <p class="senha">Senha</p>
 
                 <div class="senha-box">
-                    <input autocomplete="current-password" class="input-senha" placeholder="Senha" type="password" spellcheck="false">
+<input autocomplete="new-password" name="login-password" class="input-senha" placeholder="Senha" type="password" spellcheck="false" aria-label="Senha" >
                     <i class="bi bi-eye" id="toggleSenha"></i>
                 </div>
 
                 <span class="erro-senha"></span>
             </section>
-            <button class="btn-Entrar" type="button">ENTRAR</button>
+<button class="btn-Entrar" type="button" id="btnEntrar">ENTRAR</button>
 
             <p class="txt2">Não tem conta? <a class="Cadastre-se-txt" href="cadastro.html">Cadastre-se</a></p>
         </div>
