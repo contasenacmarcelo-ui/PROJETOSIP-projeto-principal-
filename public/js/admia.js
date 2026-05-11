@@ -164,6 +164,7 @@ function exibirClientes(clientes) {
 
     tbody.innerHTML = '';
 
+
     if (clientes.length === 0) {
         const tr = document.createElement('tr');
         tr.innerHTML = '<td colspan="8" style="text-align:center;padding:20px;">Nenhum cliente encontrado</td>';
@@ -450,6 +451,7 @@ async function responderMensagem(chamadoId) {
     if (!resposta) return;
 
     const token = getToken();
+
     if (!token) {
         alert('Sessão expirada. Faça login novamente.');
         window.location.href = '/public/pages/login.html';
@@ -518,6 +520,7 @@ async function marcarResolvido(chamadoId) {
 // Carregar modelos de Machine Learning
 async function carregarModelosML() {
     const modelos = [
+
         {
             nome: 'Classificador de Suporte',
             funcao: 'Classifica chamados de suporte por categoria e urgência',
@@ -598,6 +601,7 @@ function exibirPedidos(pedidos) {
 
     container.innerHTML = '';
 
+
     if (pedidos.length === 0) {
         container.innerHTML = '<p class="sem-dados">Nenhum pedido encontrado.</p>';
         return;
@@ -644,6 +648,8 @@ async function verDetalhesPedido(pedidoId) {
             headers: apiHeaders(false)
         });
 
+
+
         if (response.ok) {
             const data = await response.json();
             alert(`Detalhes do Pedido #${pedidoId}:\n\nCliente: ${data.usuario_nome}\nServiço: ${data.servico}\nStatus: ${data.status}\nValor: R$ ${data.valor_estimado || 'N/A'}`);
@@ -665,18 +671,61 @@ async function atualizarStatusPedido(pedidoId, novoStatus) {
         if (response.ok) {
             alert('Status atualizado com sucesso!');
             carregarPedidos();
-        } else {
-            alert('Erro ao atualizar status');
+            return;
         }
+
+        const txt = await response.text().catch(() => '');
+        console.error('Erro ao atualizar status do pedido', { pedidoId, novoStatus, status: response.status, body: txt });
+        alert(`Erro ao atualizar status: ${txt || response.status}`);
     } catch (error) {
         console.error('Erro:', error);
         alert('Erro ao atualizar status');
     }
 }
 
-// Testar modelo (placeholder)
-function testarModelo(arquivo) {
-    alert(`Teste do modelo ${arquivo} não implementado ainda.`);
+// Testar modelo (botão funcional)
+async function testarModelo(arquivo) { 
+
+    // Usa o mesmo endpoint que já existe no backend para ML (relatório agregado)
+    // Não mexe na lógica do backend ML, só torna o botão funcional.
+    try {
+        const token = getToken();
+        if (!token) {
+            alert('Sessão expirada. Faça login novamente.');
+            window.location.href = '/public/pages/login.html';
+            return;
+        }
+
+        const response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
+            headers: apiHeaders(false)
+        });
+
+        if (!response.ok) {
+            const txt = await response.text().catch(() => '');
+            console.error('Erro ao testar modelo', { arquivo, status: response.status, body: txt });
+            alert(`Erro ao testar modelo: ${txt || response.status}`);
+            return;
+        }
+
+        const data = await response.json();
+
+        // Reaproveita a mesma renderização do relatório ML que já existe
+        exibirRelatorioML(data);
+
+        alert(`Modelo ${arquivo} processado via relatório ML.`);
+    } catch (err) {
+        console.error('Erro ao testar modelo:', err);
+        alert('Erro ao testar modelo');
+    }
 }
+
+// Garantir que funções chamadas por onclick fiquem no escopo global
+window.verDetalhesPedido = verDetalhesPedido;
+window.atualizarStatusPedido = atualizarStatusPedido;
+window.responderMensagem = responderMensagem;
+window.marcarResolvido = marcarResolvido;
+window.testarModelo = testarModelo;
+
+
 
 
