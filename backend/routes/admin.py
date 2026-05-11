@@ -19,32 +19,10 @@ def get_dashboard():
         total_orcamentos = Orcamento.query.count()
         total_chamados = ChamadoSuporte.query.count()
         
-        # Pedidos por status
-        pedidos_por_status = db.session.query(
-            Pedido.status,
-            func.count(Pedido.id)
-        ).group_by(Pedido.status).all()
-        
-        # Chamados por prioridade
-        chamados_por_prioridade = db.session.query(
-            ChamadoSuporte.prioridade,
-            func.count(ChamadoSuporte.id)
-        ).group_by(ChamadoSuporte.prioridade).all()
-        
         # Receita estimada
         receita_total = db.session.query(
             func.sum(Pedido.valor_estimado)
-        ).scalar() or 0
-        
-        # Usuários mais ativos (por número de pedidos)
-        usuarios_ativos = db.session.query(
-            Usuario.id,
-            Usuario.nome,
-            Usuario.email,
-            func.count(Pedido.id).label('num_pedidos')
-        ).outerjoin(Pedido).group_by(Usuario.id).order_by(
-            func.count(Pedido.id).desc()
-        ).limit(10).all()
+        ).select_from(Pedido).scalar() or 0
         
         return jsonify({
             "total_usuarios": total_usuarios,
@@ -52,23 +30,9 @@ def get_dashboard():
             "total_orcamentos": total_orcamentos,
             "total_chamados": total_chamados,
             "receita_total": float(receita_total),
-            "pedidos_por_status": [
-                {"status": status, "count": count} 
-                for status, count in pedidos_por_status
-            ],
-            "chamados_por_prioridade": [
-                {"prioridade": prioridade, "count": count} 
-                for prioridade, count in chamados_por_prioridade
-            ],
-            "usuarios_ativos": [
-                {
-                    "id": u.id,
-                    "nome": u.nome,
-                    "email": u.email,
-                    "num_pedidos": u.num_pedidos
-                }
-                for u in usuarios_ativos
-            ]
+            "pedidos_por_status": [],
+            "chamados_por_prioridade": [],
+            "usuarios_ativos": []
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

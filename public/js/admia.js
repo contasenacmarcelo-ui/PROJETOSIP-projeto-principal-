@@ -136,7 +136,7 @@ function atualizarDashboard(data) {
     updateElement('total-pedidos', data.total_pedidos);
     updateElement('total-orcamentos', data.total_orcamentos);
     updateElement('total-chamados', data.total_chamados);
-    updateElement('receita-total', `R$ ${data.receita_total.toFixed(2)}`);
+    updateElement('receita-total', `R$ ${data.receita_total.toFixed(2).replace('.', ',')}`);
 }
 
 // Carregar lista de clientes
@@ -445,6 +445,13 @@ async function responderMensagem(chamadoId) {
     const resposta = prompt('Digite sua resposta:');
     if (!resposta) return;
 
+    const token = getToken();
+    if (!token) {
+        alert('Sessão expirada. Faça login novamente.');
+        window.location.href = '/public/pages/login.html';
+        return;
+    }
+
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}/responder`, {
             method: 'POST',
@@ -472,6 +479,13 @@ async function responderMensagem(chamadoId) {
 
 // Marcar como resolvido
 async function marcarResolvido(chamadoId) {
+    const token = getToken();
+    if (!token) {
+        alert('Sessão expirada. Faça login novamente.');
+        window.location.href = '/public/pages/login.html';
+        return;
+    }
+
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}/responder`, {
             method: 'POST',
