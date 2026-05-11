@@ -17,7 +17,9 @@ async function verificarAutenticacao() {
     }
 
     try {
-        const response = await apiFetch('/auth/me', { contentType: false });
+        // Não usar contentType:false aqui (não afeta o Authorization, mas pode atrapalhar o fluxo)
+        const response = await apiFetch('/auth/me');
+
 
         if (response.ok) {
             usuarioAtual = await response.json();
@@ -75,7 +77,7 @@ function setupModals() {
     const modal = document.getElementById("modal");
     const modalDetalhes = document.getElementById("modal-detalhes");
 
-    window.abrirModal = function() {
+    window.abrirModal = function () {
         if (modal) modal.style.display = "block";
         setTimeout(() => {
             const nomeInput = document.getElementById("nome");
@@ -83,15 +85,15 @@ function setupModals() {
         }, 100);
     };
 
-    window.fecharModal = function() {
+    window.fecharModal = function () {
         if (modal) modal.style.display = "none";
     };
 
-    window.abrirModalDetalhes = function() {
+    window.abrirModalDetalhes = function () {
         if (modalDetalhes) modalDetalhes.style.display = "block";
     };
 
-    window.fecharModalDetalhes = function() {
+    window.fecharModalDetalhes = function () {
         if (modalDetalhes) modalDetalhes.style.display = "none";
     };
 
@@ -227,7 +229,7 @@ function exibirModalDetalhes(data) {
     updateElement('det-status', data.usuario.status);
 
     // Pedidos
-    const pedidosHTML = data.pedidos.length > 0 
+    const pedidosHTML = data.pedidos.length > 0
         ? data.pedidos.map(p => `
             <div style="padding:10px;border-bottom:1px solid #eee;">
                 <strong>${p.tipo_servico}</strong> - <span style="color:#666;">${p.status}</span>
@@ -252,7 +254,9 @@ function exibirModalDetalhes(data) {
         detSuportes.innerHTML = suportesHTML;
         // Adicionar ML Insights
         const mlHTML = `
-            <div style="background:#f0f4f8;padding:15px;border-radius:8px;margin-top:15px;">
+            <div style="background:radial-gradient(circle at top left, rgba(0, 204, 169, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(255, 173, 58, 0.14), transparent 22%),
+        #050c1a;;padding:15px;border-radius:8px;margin-top:15px;">
                 <h4>ML Insights</h4>
                 <p><strong>Taxa de Conclusão:</strong> ${data.resumo.taxa_conclusao}%</p>
                 <p><strong>Valor Total:</strong> R$ ${data.resumo.valor_total.toFixed(2)}</p>
@@ -285,7 +289,7 @@ async function carregarRelatorioML() {
 // Exibir relatório de ML
 function exibirRelatorioML(data) {
     const container = document.getElementById('ml-report-container') || document.body;
-    
+
     const htmlContent = `
         <div style="padding:20px;background:#fff;">
             <h2>Relatório de Machine Learning</h2>
@@ -293,9 +297,9 @@ function exibirRelatorioML(data) {
             <section style="margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;">
                 <h3>Classificador de Suporte</h3>
                 <ul>
-                    ${data.classificador_suporte.categorias.map(c => 
-                        `<li>${c.categoria}: ${c.count} chamados</li>`
-                    ).join('')}
+                    ${data.classificador_suporte.categorias.map(c =>
+        `<li>${c.categoria}: ${c.count} chamados</li>`
+    ).join('')}
                 </ul>
             </section>
 
@@ -353,7 +357,7 @@ function exibirRelatorioML(data) {
 }
 
 // Adicionar usuário
-window.adicionarUsuario = async function() {
+window.adicionarUsuario = async function () {
     const nome = document.getElementById('nome').value;
     const email = document.getElementById('email').value;
     const telefone = document.getElementById('telefone').value;
@@ -568,9 +572,19 @@ async function carregarPedidos() {
             headers: apiHeaders(false)
         });
 
+        if (response.status === 401) {
+            // Falha de auth pode impedir renderização completa do painel
+            alert('Sessão expirada ou sem permissão de admin. Faça login novamente.');
+            window.location.href = '/public/pages/login.html';
+            return;
+        }
+
         if (response.ok) {
             const data = await response.json();
             exibirPedidos(data.pedidos);
+        } else {
+            const txt = await response.text().catch(() => '');
+            console.error('Erro ao carregar pedidos:', response.status, txt);
         }
     } catch (error) {
         console.error('Erro ao carregar pedidos:', error);
@@ -594,7 +608,7 @@ function exibirPedidos(pedidos) {
         card.className = 'pedido-card';
         const dataCriacao = new Date(pedido.data_criacao).toLocaleDateString('pt-BR');
         const statusClass = pedido.status.toLowerCase().replace(' ', '-');
-        
+
         card.innerHTML = `
             <div class="pedido-header">
                 <h3>Pedido #${pedido.id}</h3>

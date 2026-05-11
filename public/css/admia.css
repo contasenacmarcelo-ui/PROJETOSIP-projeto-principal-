@@ -396,6 +396,16 @@ td {
     font-size: 0.95rem;
 }
 
+
+.btn-detalhes,.btn-status, .btn-resolver, .btn-responder, .btn-testar{
+    background-color: black;
+    padding: 1%;
+    border-radius: 5px;
+   
+}
+hr{
+    margin: 1%;
+}
 @media (max-width: 1200px) {
     .dashboard-overview,
     .cards-grid-large {
