@@ -17,7 +17,7 @@ async function verificarAutenticacao() {
     }
 
     try {
-        const response = await apiFetch('/me', { contentType: false });
+        const response = await apiFetch('/auth/me', { contentType: false });
 
         if (response.ok) {
             usuarioAtual = await response.json();

@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const token = getToken();
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = '/public/pages/login.html';
         return;
     }
 

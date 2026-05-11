@@ -46,7 +46,7 @@ try:
 
     @app.route('/')
     def index():
-        return jsonify({"message": "SIP Backend API", "status": "running"})
+        return send_from_directory(os.path.join(app.root_path, '..'), 'index.html')
 
     # Servir arquivos estáticos
     @app.route('/public/<path:filename>')

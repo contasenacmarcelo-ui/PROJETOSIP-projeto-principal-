@@ -128,7 +128,7 @@ btn.addEventListener("click", function (event) {
             localStorage.setItem('loggedInUser', JSON.stringify(data.user || novo));
 
             // Redirecionar para login
-            window.location.href = 'login.html';
+            window.location.href = '/public/pages/login.html';
         })
         .catch(error => {
             console.error('Erro ao cadastrar:', error);
