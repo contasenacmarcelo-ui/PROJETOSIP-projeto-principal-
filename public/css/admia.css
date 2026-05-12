@@ -45,8 +45,8 @@ select {
 }
 
 .sidebar-brand img {
-    width: 48px;
-    height: 48px;
+    width: 90px;
+    height: 50px;
 }
 
 .sidebar-brand span {
@@ -361,6 +361,10 @@ td {
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.04);
     color: #f4f7fb;
+}
+
+.form-grid select option {
+    color: black;
 }
 
 .form-grid input::placeholder {
