@@ -367,6 +367,10 @@ td {
     color: rgba(255, 255, 255, 0.45);
 }
 
+.form-grid select{
+    margin-bottom: 16px;
+}
+
 .detalhes-secao {
     margin-top: 24px;
 }
