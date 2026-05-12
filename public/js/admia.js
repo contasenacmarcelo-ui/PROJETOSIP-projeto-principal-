@@ -1,5 +1,53 @@
 let usuarioAtual = null;
 
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '\"')
+
+        .replace(/'/g, '&#039;');
+}
+
+function setModalMensagens(titulo, mensagemHtml, tipo = 'info') {
+    const modal = document.getElementById('modal-mensagem');
+    const tituloElem = document.getElementById('mensagem-titulo');
+    const corpoElem = document.getElementById('mensagem-corpo');
+
+    if (!modal || !tituloElem || !corpoElem) return;
+
+    tituloElem.textContent = titulo || 'Mensagem';
+
+    if (mensagemHtml && typeof mensagemHtml === 'string') {
+        corpoElem.innerHTML = mensagemHtml;
+    } else {
+        corpoElem.textContent = '—';
+    }
+
+    // (Opcional) ajustar classe por tipo no futuro.
+    modal.dataset.tipo = tipo;
+    modal.style.display = 'block';
+}
+
+window.fecharModalMensagem = function () {
+    const modal = document.getElementById('modal-mensagem');
+    if (modal) modal.style.display = 'none';
+};
+
+window.mostrarModalMensagem = function ({ titulo, mensagem, tipo = 'info', html = false } = {}) {
+    // Se html=false, tratamos como texto e convertimos \n em <br>
+    let mensagemHtml;
+    if (html) {
+        mensagemHtml = mensagem || '—';
+    } else {
+        mensagemHtml = escapeHtml(mensagem || '—').replace(/\n/g, '<br>');
+    }
+    setModalMensagens(titulo, mensagemHtml, tipo);
+};
+
 // Verificar autenticação ao carregar a página
 document.addEventListener('DOMContentLoaded', async () => {
     await verificarAutenticacao();
@@ -8,13 +56,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+
 // Verificar se é admin
 async function verificarAutenticacao() {
-    const token = getToken();
+    // Reforça a busca do token (às vezes pode estar em outra chave do localStorage)
+    let token = getToken();
+    if (!token) {
+        token = localStorage.getItem('access_token');
+    }
+    if (!token) {
+        try {
+            const logged = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+            token = logged?.access_token;
+        } catch (e) {
+            token = null;
+        }
+    }
+
     if (!token) {
         window.location.href = '/public/pages/login.html';
         return;
     }
+
 
     try {
         // Não usar contentType:false aqui (não afeta o Authorization, mas pode atrapalhar o fluxo)
@@ -24,8 +87,13 @@ async function verificarAutenticacao() {
         if (response.ok) {
             usuarioAtual = await response.json();
             if (usuarioAtual.role !== 'admin') {
-                alert('Acesso negado! Apenas administradores.');
+            mostrarModalMensagem({
+                titulo: 'Acesso negado',
+                mensagem: 'Apenas administradores podem acessar este painel.',
+                tipo: 'erro'
+            });
                 // Não redirecionar para a página de login durante o mesmo fluxo de carregamento
+
                 // (evita loop/reload quando token é setado/recuperado pelo navegador)
                 return;
             }
@@ -66,6 +134,8 @@ function initializeAdmin() {
     carregarMensagensSuporte();
     carregarModelosML();
     carregarPedidos();
+    // Carregar relatórios/insights de ML (dados do banco)
+    carregarRelatorioML();
 
     // Evento do botão de logout
     document.querySelectorAll('.btn-logout, .header-logout').forEach(btn => {
@@ -209,8 +279,9 @@ async function verDetalhes(clienteId) {
         }
     } catch (error) {
         console.error('Erro ao carregar detalhes:', error);
-        alert('Erro ao carregar detalhes do cliente');
+        mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao carregar detalhes do cliente.', tipo: 'erro' });
     }
+
 }
 
 // Exibir modal com detalhes do cliente
@@ -274,9 +345,19 @@ function exibirModalDetalhes(data) {
 // Carregar relatório de ML
 async function carregarRelatorioML() {
     try {
-        const response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
+        // Preferência: exemplos (seed) do endpoint novo. Fallback: relatório agregado.
+        let response = await fetch(`${API_BASE}/admin/ml/exemplos`, {
             headers: apiHeaders(false)
         });
+
+        if (!response.ok) {
+            response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
+                headers: apiHeaders(false)
+            });
+        }
+
+
+
 
         if (response.ok) {
             const data = await response.json();
@@ -289,7 +370,8 @@ async function carregarRelatorioML() {
 
 // Exibir relatório de ML
 function exibirRelatorioML(data) {
-    const container = document.getElementById('ml-report-container') || document.body;
+    const container = document.getElementById('ml-container') || document.body;
+
 
     const htmlContent = `
         <div style="padding:20px;background:#fff;">
@@ -350,11 +432,13 @@ function exibirRelatorioML(data) {
         </div>
     `;
 
-    if (document.getElementById('ml-report-container')) {
-        document.getElementById('ml-report-container').innerHTML = htmlContent;
+    // Renderiza no mesmo container usado pelos cards do ML
+    if (container) {
+        container.innerHTML = htmlContent;
     } else {
         alert(htmlContent);
     }
+
 }
 
 // Adicionar usuário
@@ -364,9 +448,10 @@ window.adicionarUsuario = async function () {
     const telefone = document.getElementById('telefone').value;
 
     if (!nome || !email) {
-        alert('Nome e email são obrigatórios');
+        mostrarModalMensagem({ titulo: 'Campos obrigatórios', mensagem: 'Nome e e-mail são obrigatórios para adicionar um usuário.', tipo: 'aviso' });
         return;
     }
+
 
     try {
         const response = await fetch(`${API_BASE}/auth/cadastro`, {
@@ -381,21 +466,24 @@ window.adicionarUsuario = async function () {
         });
 
         if (response.ok) {
-            alert('Usuário adicionado com sucesso');
+            mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Usuário adicionado com sucesso!', tipo: 'sucesso' });
             window.fecharModal();
             carregarClientes();
             // Limpar campos
+
             document.getElementById('nome').value = '';
             document.getElementById('email').value = '';
             document.getElementById('telefone').value = '';
         } else {
             const error = await response.json();
-            alert(error.error || 'Erro ao adicionar usuário');
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: error.error || 'Erro ao adicionar usuário.', tipo: 'erro' });
         }
+
     } catch (error) {
         console.error('Erro:', error);
-        alert('Erro ao adicionar usuário');
+        mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao adicionar usuário.', tipo: 'erro' });
     }
+
 }
 
 // Carregar mensagens de suporte
@@ -453,10 +541,11 @@ async function responderMensagem(chamadoId) {
     const token = getToken();
 
     if (!token) {
-        alert('Sessão expirada. Faça login novamente.');
+        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
         window.location.href = '/public/pages/login.html';
         return;
     }
+
 
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}/responder`, {
@@ -472,25 +561,28 @@ async function responderMensagem(chamadoId) {
         });
 
         if (response.ok) {
-            alert('Resposta enviada com sucesso!');
+            mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Resposta enviada com sucesso!', tipo: 'sucesso' });
             carregarMensagensSuporte();
         } else {
-            alert('Erro ao enviar resposta');
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao enviar resposta.', tipo: 'erro' });
         }
+
     } catch (error) {
         console.error('Erro:', error);
-        alert('Erro ao enviar resposta');
+        mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao enviar resposta.', tipo: 'erro' });
     }
+
 }
 
 // Marcar como resolvido
 async function marcarResolvido(chamadoId) {
     const token = getToken();
     if (!token) {
-        alert('Sessão expirada. Faça login novamente.');
+        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
         window.location.href = '/public/pages/login.html';
         return;
     }
+
 
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}/responder`, {
@@ -506,15 +598,17 @@ async function marcarResolvido(chamadoId) {
         });
 
         if (response.ok) {
-            alert('Chamado marcado como resolvido!');
+            mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Chamado marcado como resolvido!', tipo: 'sucesso' });
             carregarMensagensSuporte();
         } else {
-            alert('Erro ao marcar como resolvido');
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao marcar como resolvido.', tipo: 'erro' });
         }
+
     } catch (error) {
         console.error('Erro:', error);
-        alert('Erro ao marcar como resolvido');
+        mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao marcar como resolvido.', tipo: 'erro' });
     }
+
 }
 
 // Carregar modelos de Machine Learning
@@ -577,10 +671,15 @@ async function carregarPedidos() {
 
         if (response.status === 401) {
             // Falha de auth pode impedir renderização completa do painel
-            alert('Sessão expirada ou sem permissão de admin. Faça login novamente.');
+            mostrarModalMensagem({
+                titulo: 'Acesso negado',
+                mensagem: 'Sessão expirada ou sem permissão de admin. Faça login novamente.',
+                tipo: 'erro'
+            });
             window.location.href = '/public/pages/login.html';
             return;
         }
+
 
         if (response.ok) {
             const data = await response.json();
@@ -696,9 +795,17 @@ async function testarModelo(arquivo) {
             return;
         }
 
-        const response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
+        // Preferência: exemplos (seed) do endpoint novo. Fallback: relatório agregado.
+        let response = await fetch(`${API_BASE}/admin/ml/exemplos`, {
             headers: apiHeaders(false)
         });
+
+        if (!response.ok) {
+            response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
+                headers: apiHeaders(false)
+            });
+        }
+
 
         if (!response.ok) {
             const txt = await response.text().catch(() => '');
@@ -720,11 +827,20 @@ async function testarModelo(arquivo) {
 }
 
 // Garantir que funções chamadas por onclick fiquem no escopo global
+window.verDetalhes = verDetalhes;
 window.verDetalhesPedido = verDetalhesPedido;
 window.atualizarStatusPedido = atualizarStatusPedido;
 window.responderMensagem = responderMensagem;
 window.marcarResolvido = marcarResolvido;
 window.testarModelo = testarModelo;
+
+
+
+
+
+
+
+
 
 
 

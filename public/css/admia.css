@@ -389,10 +389,39 @@ td {
     color: rgba(255, 255, 255, 0.78);
 }
 
+/* Lista dentro do modal de detalhes */
 .detalhes-lista {
     display: grid;
     gap: 12px;
+    max-height: 260px;
+    overflow: auto;
+    padding-right: 6px;
 }
+
+.detalhes-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+}
+
+.detalhes-item strong {
+    color: #ffffff;
+}
+
+.detalhes-item small {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+
+/* Deixar o modal de detalhes com visual mais “cards” */
+#modal-detalhes .modal-content {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+}
+
 
 .sem-dados {
     color: rgba(255, 255, 255, 0.55);
@@ -470,3 +499,22 @@ hr{
         align-items: flex-start;
     }
 }
+
+/* ================= MODAL MENSAGENS (SUBSTITUI ALERT) ================= */
+#modal-mensagem .modal-content {
+    width: min(100%, 680px);
+}
+
+.mensagem-corpo {
+    margin-top: 10px;
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.6;
+    white-space: normal;
+}
+
+.mensagem-botoes {
+    margin-top: 22px;
+    display: flex;
+    justify-content: flex-end;
+}
+

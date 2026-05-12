@@ -116,6 +116,61 @@ def get_cliente_detalhes(cliente_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@admin_bp.route('/admin/ml/exemplos', methods=['GET'])
+@jwt_required()
+@require_admin()
+def get_ml_exemplos():
+    """Retorna exemplos (seed) usados na interface/validações dos testes.
+
+    Formato esperado por tests/test_admin_ml_exemplos.py:
+    - resposta JSON com "exemplos_por_modelo"
+    - modelos: classificador_suporte, recomendador_servicos, estimador_orcamento,
+      detector_anomalias, clustering_clientes, extrator_tags
+    - cada modelo contém lista com exatamente 5 itens
+    - cada item: { exemplo_idx: 1..5, input: ..., output: ... }
+    """
+
+    modelos = {
+        "classificador_suporte": {
+            "input_template": "[classificador_suporte] ticket={{exemplo_idx}}",
+            "output_template": "categoria=suporte_tecnico; prioridade=media; score=0.{{exemplo_idx}}",
+        },
+        "recomendador_servicos": {
+            "input_template": "[recomendador_servicos] cliente={{exemplo_idx}}; perfil=default",
+            "output_template": "recomendacoes=[website, app]; confiança=0.{{exemplo_idx}}",
+        },
+        "estimador_orcamento": {
+            "input_template": "[estimador_orcamento] projeto={{exemplo_idx}}; tipo=sistema",
+            "output_template": "valor_estimado=R$ {{exemplo_idx}}000.00; prazo_meses={{exemplo_idx}}",
+        },
+        "detector_anomalias": {
+            "input_template": "[detector_anomalias] janela={{exemplo_idx}}; métricas=default",
+            "output_template": "anomalia=false; score=0.{{exemplo_idx}}",
+        },
+        "clustering_clientes": {
+            "input_template": "[clustering_clientes] cliente={{exemplo_idx}}; comportamento=default",
+            "output_template": "cluster=C{{exemplo_idx}}; proximidade=0.{{exemplo_idx}}",
+        },
+        "extrator_tags": {
+            "input_template": "[extrator_tags] descrição={{exemplo_idx}}; texto=default",
+            "output_template": "tags=[tag{{exemplo_idx}}, ml, sip]",
+        },
+    }
+
+    exemplos_por_modelo = {}
+    for modelo_nome, cfg in modelos.items():
+        exemplos = []
+        for i in range(1, 6):
+            exemplos.append({
+                "exemplo_idx": i,
+                "input": cfg["input_template"].replace("{{exemplo_idx}}", str(i)),
+                "output": cfg["output_template"].replace("{{exemplo_idx}}", str(i)),
+            })
+        exemplos_por_modelo[modelo_nome] = exemplos
+
+    return jsonify({"exemplos_por_modelo": exemplos_por_modelo}), 200
+
+
 @admin_bp.route('/admin/relatorio/ml', methods=['GET'])
 @jwt_required()
 @require_admin()
@@ -180,6 +235,7 @@ def get_relatorio_ml():
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @admin_bp.route('/admin/usuario/<int:usuario_id>/promocao', methods=['POST'])
 @jwt_required()
