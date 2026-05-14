@@ -880,7 +880,50 @@ hr {
     padding: 12px;
     margin-bottom: 10px;
     font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
+
+.pedido-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.pedido-acoes {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.btn-pedido-excluir {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: 1px solid rgba(255, 71, 87, 0.7);
+    color: rgba(255, 71, 87, 0.95);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: "Sora", sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.btn-pedido-excluir i {
+    font-size: 16px;
+}
+
+.btn-pedido-excluir:hover {
+    background: rgba(255, 71, 87, 0.08);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(255, 71, 87, 0.12);
+}
+
 
 .pedido-item strong {
     color: rgba(0, 156, 134, 1);

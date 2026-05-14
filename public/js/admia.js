@@ -374,7 +374,7 @@ function exibirRelatorioML(data) {
 
 
     const htmlContent = `
-        <div style="padding:20px;background:#fff;">
+        <div style="padding:20px;background:#021124;">
             <h2>Relatório de Machine Learning</h2>
             
             <section style="margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;">
@@ -782,11 +782,8 @@ async function atualizarStatusPedido(pedidoId, novoStatus) {
     }
 }
 
-// Testar modelo (botão funcional)
-async function testarModelo(arquivo) { 
-
-    // Usa o mesmo endpoint que já existe no backend para ML (relatório agregado)
-    // Não mexe na lógica do backend ML, só torna o botão funcional.
+// Testar modelo (botão funcional) - executa ML real com input mínimo
+async function testarModelo(arquivo) {
     try {
         const token = getToken();
         if (!token) {
@@ -795,36 +792,185 @@ async function testarModelo(arquivo) {
             return;
         }
 
-        // Preferência: exemplos (seed) do endpoint novo. Fallback: relatório agregado.
-        let response = await fetch(`${API_BASE}/admin/ml/exemplos`, {
-            headers: apiHeaders(false)
+        // Mapear arquivo => rota e input
+        // (Mantemos input mínimo para não quebrar UI e garantir que os endpoints aceitem os campos)
+        let rota = null;
+        let payload = {};
+        let titulo = '';
+        let htmlInputs = '';
+
+        switch (arquivo) {
+            case 'classificador_suporte.py':
+                rota = '/ml/classificador-suporte';
+                titulo = 'Testar Classificador de Suporte';
+                htmlInputs = `
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <label>Descrição</label>
+                        <textarea id="mlInputDescricao" rows="5" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder="Descreva o problema..."></textarea>
+                    </div>
+                    `;
+                break;
+            case 'extrator_tags.py':
+                rota = '/ml/extrator-tags';
+                titulo = 'Testar Extrator de Tags';
+                htmlInputs = `
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <label>Descrição</label>
+                        <textarea id="mlInputDescricao" rows="5" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder="Cole a descrição do projeto..."></textarea>
+                    </div>
+                    `;
+                break;
+            case 'estimador_orcamento.py':
+                rota = '/ml/estimador-orcamento';
+                titulo = 'Testar Estimador de Orçamento';
+                htmlInputs = `
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <label>Tipo de Serviço</label>
+                        <input id="mlInputTipoServico" type="text" value="sistema" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" />
+                        <label>Parâmetros (JSON)</label>
+                        <textarea id="mlInputParametros" rows="5" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder='{"valor": 1000, "paginas": 5, "funcionalidades": 3, "prazo_dias": 30}'></textarea>
+                    </div>
+                    `;
+                break;
+            case 'recomendador_servicos.py':
+                rota = '/ml/recomendador-servicos';
+                titulo = 'Testar Recomendador de Serviços';
+                htmlInputs = `
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <label>Tipo de Cliente</label>
+                        <input id="mlInputTipoCliente" type="text" value="empresa" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" />
+                        <label>Budget</label>
+                        <input id="mlInputBudget" type="number" value="5000" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" />
+                        <label>Necessidades</label>
+                        <textarea id="mlInputNecessidades" rows="4" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder="Quais são as necessidades do cliente?"></textarea>
+                    </div>
+                    `;
+                break;
+            case 'clustering_clientes.py':
+                rota = '/ml/clustering-cliente';
+                titulo = 'Testar Clustering de Clientes';
+                htmlInputs = `
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        <label>Histórico (JSON)</label>
+                        <textarea id="mlInputHistorico" rows="5" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder='{"pedidos_totais": 5, "valor_total_gasto": 8000, "tempo_como_cliente_dias": 200, "tipo_ultimo_pedido": "website"}'></textarea>
+                    </div>
+                    `;
+                break;
+            default:
+                mostrarModalMensagem({
+                    titulo: 'Modelo não suportado',
+                    mensagem: 'Esse modelo ainda não tem input configurado na interface.',
+                    tipo: 'aviso'
+                });
+                return;
+        }
+
+        // Usar modal de mensagem existente para coletar input
+        mostrarModalMensagem({
+            titulo,
+            mensagem: htmlInputs,
+            tipo: 'info',
+            html: true
         });
 
-        if (!response.ok) {
-            response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
-                headers: apiHeaders(false)
-            });
-        }
+        // Criar botão “Executar” dentro do modal (de forma não invasiva)
+        // Espera o DOM do modal-mensagem estar renderizado.
+        setTimeout(() => {
+            const modal = document.getElementById('modal-mensagem');
+            const corpo = document.getElementById('mensagem-corpo');
+            if (!modal || !corpo) return;
 
+            // evitar duplicar botões
+            if (document.getElementById('mlExecBtn')) return;
 
-        if (!response.ok) {
-            const txt = await response.text().catch(() => '');
-            console.error('Erro ao testar modelo', { arquivo, status: response.status, body: txt });
-            alert(`Erro ao testar modelo: ${txt || response.status}`);
-            return;
-        }
+            const btn = document.createElement('button');
+            btn.id = 'mlExecBtn';
+            btn.textContent = 'Executar ML';
+            btn.className = 'btn-add';
+            btn.style.marginTop = '12px';
+            btn.onclick = async () => {
+                try {
+                    // coletar inputs por rota
+                    if (arquivo === 'classificador_suporte.py') {
+                        const descricao = document.getElementById('mlInputDescricao')?.value || '';
+                        if (!descricao.trim()) throw new Error('Informe a descrição.');
+                        payload = { descricao };
+                    } else if (arquivo === 'extrator_tags.py') {
+                        const descricao = document.getElementById('mlInputDescricao')?.value || '';
+                        if (!descricao.trim()) throw new Error('Informe a descrição.');
+                        payload = { descricao };
+                    } else if (arquivo === 'estimador_orcamento.py') {
+                        const tipo_servico = document.getElementById('mlInputTipoServico')?.value || 'website';
+                        const raw = document.getElementById('mlInputParametros')?.value || '{}';
+                        let parametros = {};
+                        try { parametros = JSON.parse(raw); } catch { throw new Error('Parâmetros JSON inválidos.'); }
+                        payload = { tipo_servico, parametros };
+                    } else if (arquivo === 'recomendador_servicos.py') {
+                        const tipo_cliente = document.getElementById('mlInputTipoCliente')?.value || 'empresa';
+                        const budget = Number(document.getElementById('mlInputBudget')?.value || 0);
+                        const necessidades = document.getElementById('mlInputNecessidades')?.value || '';
+                        payload = { tipo_cliente, budget, necessidades };
+                    } else if (arquivo === 'clustering_clientes.py') {
+                        const raw = document.getElementById('mlInputHistorico')?.value || '{}';
+                        let historico = {};
+                        try { historico = JSON.parse(raw); } catch { throw new Error('Histórico JSON inválido.'); }
+                        payload = { historico };
+                    }
 
-        const data = await response.json();
+                    const resp = await fetch(`${API_BASE}${rota}`, {
+                        method: 'POST',
+                        headers: apiHeaders(true),
+                        body: JSON.stringify(payload)
+                    });
 
-        // Reaproveita a mesma renderização do relatório ML que já existe
-        exibirRelatorioML(data);
+                    const txt = await resp.text().catch(() => '');
+                    let data;
+                    try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt }; }
 
-        alert(`Modelo ${arquivo} processado via relatório ML.`);
+                    if (!resp.ok) {
+                        throw new Error(data?.error || txt || `HTTP ${resp.status}`);
+                    }
+
+                    // Renderizar resultado no ml-container
+                    const container = document.getElementById('ml-container') || document.body;
+                    container.innerHTML = `
+                        <div style="padding:20px;background:#021124;">
+                            <h2>Resultado ML</h2>
+                            <pre style="white-space:pre-wrap;word-break:break-word;background:#021124;padding:15px;border-radius:8px;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+                        </div>
+                    `;
+
+                    mostrarModalMensagem({
+                        titulo: 'ML executado com sucesso',
+                        mensagem: 'Resultado exibido abaixo na seção ML.',
+                        tipo: 'sucesso'
+                    });
+
+                    // fechar o modal de mensagem para liberar tela (opcional)
+                    window.fecharModalMensagem();
+                } catch (e) {
+                    console.error('Erro ao executar ML:', e);
+                    mostrarModalMensagem({
+                        titulo: 'Erro ao executar ML',
+                        mensagem: (e && e.message) ? e.message : 'Erro interno',
+                        tipo: 'erro'
+                    });
+                }
+            };
+
+            corpo.appendChild(btn);
+        }, 0);
+
     } catch (err) {
         console.error('Erro ao testar modelo:', err);
-        alert('Erro ao testar modelo');
+        mostrarModalMensagem({
+            titulo: 'Erro ao testar modelo',
+            mensagem: (err && err.message) ? err.message : 'Erro interno',
+            tipo: 'erro'
+        });
     }
 }
+
 
 // Garantir que funções chamadas por onclick fiquem no escopo global
 window.verDetalhes = verDetalhes;

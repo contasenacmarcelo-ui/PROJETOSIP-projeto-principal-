@@ -97,3 +97,31 @@ def update_pedido(pedido_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Erro ao atualizar pedido"}), 500
+
+
+@pedidos_bp.route('/pedidos/<int:pedido_id>', methods=['DELETE'])
+@jwt_required()
+def delete_pedido(pedido_id):
+    current_user_id = int(get_jwt_identity())
+    pedido = Pedido.query.get(pedido_id)
+
+    if not pedido or pedido.usuario_id != current_user_id:
+        return jsonify({"error": "Pedido não encontrado"}), 404
+
+    try:
+        db.session.delete(pedido)
+        db.session.commit()
+
+        # Notificação opcional para o próprio usuário
+        notificacao = Notificacao(
+            usuario_id=current_user_id,
+            tipo='info',
+            mensagem=f'Pedido excluído: {pedido.tipo_servico}'
+        )
+        db.session.add(notificacao)
+        db.session.commit()
+
+        return jsonify({"message": "Pedido deletado"}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Erro ao deletar pedido"}), 500

@@ -313,17 +313,26 @@ document.addEventListener('DOMContentLoaded', function () {
         let html = '';
         pedidos.slice().reverse().forEach(p => {
             html += `
-                <div class="pedido-item">
-                    <strong>${p.tipo_servico || 'Sem título'}</strong><br>
-                    Tipo: ${p.tipo_servico || '-'}<br>
-                    Prazo: ${p.prazo || '-'}<br>
-                    Enviado: ${p.data_criacao ? new Date(p.data_criacao).toLocaleDateString('pt-BR') : '-'}<br>
-                    <span class="pedido-status status-pendente">${p.status || 'Pendente'}</span>
+                <div class="pedido-item" data-pedido-id="${p.id}">
+                    <div class="pedido-main">
+                        <strong>${p.tipo_servico || 'Sem título'}</strong><br>
+                        Tipo: ${p.tipo_servico || '-'}<br>
+                        Prazo: ${p.prazo || '-'}<br>
+                        Enviado: ${p.data_criacao ? new Date(p.data_criacao).toLocaleDateString('pt-BR') : '-'}<br>
+                        <span class="pedido-status status-pendente">${p.status || 'Pendente'}</span>
+                    </div>
+                    <div class="pedido-acoes">
+                        <button class="btn-pedido-excluir" type="button" onclick="deletarPedido(${p.id})">
+                            <i class="bi bi-trash3"></i>
+                            Excluir
+                        </button>
+                    </div>
                 </div>
             `;
         });
         listaPedidos.innerHTML = html;
     }
+
 
     // ========== MODAL NOVO PEDIDO ==========
     const btnNovoPedido = document.getElementById('btnNovoPedido');
@@ -570,9 +579,89 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+// --- DELETAR PEDIDO (chamado por onclick no HTML dinâmico) ---
+async function deletarPedido(pedidoId) {
+    if (!pedidoId) return;
+
+    const confirmado = window.confirm('Tem certeza que deseja excluir este pedido?');
+    if (!confirmado) return;
+
+    try {
+        const response = await apiFetch(`/pedidos/${pedidoId}`, {
+            method: 'DELETE',
+            headers: apiHeaders(true)
+        });
+
+        const txt = await response.text().catch(() => '');
+        if (!response.ok) {
+            console.error('Erro ao deletar pedido:', response.status, txt);
+            if (typeof toastErro === 'function') toastErro('Erro ao excluir pedido.');
+            return;
+        }
+
+        if (typeof toastSucesso === 'function') toastSucesso('Pedido excluído com sucesso!');
+
+        // recarrega via endpoints (sem depender do escopo do DOMContentLoaded)
+        const r = await fetch(`${API_BASE}/pedidos`, {
+            method: 'GET',
+            headers: apiHeaders(true)
+        });
+
+        if (!r.ok) throw new Error('Falha ao recarregar pedidos');
+        const dados = await r.json();
+
+        // atualiza contadores do dashboard e lista do modal
+        const elPedidos = document.getElementById('statPedidos');
+        const elOrcamentos = document.getElementById('statOrcamentos');
+        const elSuportes = document.getElementById('statSuportes');
+        const elNotificacoes = document.getElementById('statNotificacoes');
+
+        if (elPedidos) elPedidos.textContent = dados.length;
+        if (elOrcamentos) elOrcamentos.textContent = dados.length;
+
+        // re-render do modal
+        if (typeof renderizarPedidos === 'function' && typeof pedidosServer !== 'undefined') {
+            pedidosServer = dados;
+            renderizarPedidos();
+        } else {
+            // fallback: fecha/abre não necessário; apenas recarrega
+            location.reload();
+            return;
+        }
+
+        // atualiza notificações/badge
+        await fetch(`${API_BASE}/notificacoes`, {
+            method: 'GET',
+            headers: apiHeaders(true)
+        }).then(async (resp) => {
+            if (resp.ok) {
+                const ns = await resp.json();
+                const naoLidas = ns.filter(n => !n.lida).length;
+                const badge = document.getElementById('notificacaoBadge');
+                if (badge) {
+                    badge.textContent = naoLidas;
+                    badge.style.display = naoLidas > 0 ? 'flex' : 'none';
+                }
+                // lista completa é recarregada pelo código original via renderizarNotificacoes()
+                // mas como pode estar fora do escopo, chamamos reload
+                // (evita quebrar o fluxo se renderizarNotificacoes não existir)
+                if (typeof renderizarNotificacoes === 'function') renderizarNotificacoes();
+            }
+        });
+
+        return;
+    } catch (error) {
+        console.error('Erro ao deletar pedido:', error);
+        if (typeof toastErro === 'function') toastErro('Erro ao excluir pedido.');
+    }
+}
+
 // --- UTILS ---
+
 function mostrarErroCliente(id, msg) {
+
     const el = document.getElementById(id);
+
     if (el) {
         el.textContent = msg;
         el.classList.add('show');
