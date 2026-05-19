@@ -2,9 +2,27 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import db, Usuario, Pedido
 from ..ml_models.clustering_clientes import clusterizar_cliente
+from ..utils import require_admin
 from datetime import datetime
 
 usuarios_bp = Blueprint('usuarios', __name__)
+
+@usuarios_bp.route('/usuarios', methods=['GET'])
+@jwt_required()
+@require_admin()
+def get_usuarios():
+    """Retorna lista de usuários.
+
+    Usado pelo painel administrativo/ML para popular seletores.
+    Mantém compatibilidade: não remove os endpoints existentes por user_id.
+    """
+    try:
+        usuarios = Usuario.query.all()
+        return jsonify([u.to_dict() for u in usuarios]), 200
+    except Exception:
+        return jsonify({"error": "Erro ao listar usuários"}), 500
+
+
 
 @usuarios_bp.route('/usuarios/<int:user_id>', methods=['GET'])
 @jwt_required()

@@ -14,13 +14,14 @@
 </head>
 
 <body>
+    
     <div class="admin-shell">
         <aside class="admin-sidebar">
             <div class="sidebar-brand">
                 <a href="index.html"><img src="../assets/images/acronimo_sip_iluminado_em_azul.png" alt="Logo SIP"></a>
                 <div>
                     <span>Administrador</span>
-                 
+                    
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -28,7 +29,7 @@
                 <a href="#clientes"><i class="bi bi-people-fill"></i>Clientes</a>
                 <a href="#pedidos"><i class="bi bi-clipboard-check"></i>Pedidos</a>
                 <a href="#suporte"><i class="bi bi-headset"></i>Suporte</a>
-                <a href="#ml"><i class="bi bi-robot"></i>ML</a>
+                <a href="ml-executivo.html"><i class="bi bi-robot"></i>ML</a>
             </nav>
             <div class="sidebar-footer">
                 <button class="btn-logout" onclick="logout()">
@@ -43,7 +44,7 @@
                     <p class="eyebrow">Painel administrativo</p>
                     <h1>Bem-vindo, <span id="admin-nome">Administrador</span></h1>
                 </div>
-               
+                
             </header>
             <div class="admin-warning">
                 <p>Se o Chrome oferecer salvar sua senha, ignore esta opção. Recarregar a página pode encerrar sua sessão e exigir novo login.</p>
@@ -130,17 +131,17 @@
                 <div id="suporte-container" class="cards-grid-large"></div>
             </section>
             <hr>
-            <section class="section cards-row" id="ml">
+            <section class="section cards-row" id="ml" style="display:none;">
+
                 <div class="section-header">
                     <div>
                         <h2>Modelos de Machine Learning</h2>
                         <p>Visão geral dos modelos e resultados esperados.</p>
                     </div>
                 </div>
-                <div id="ml-container" class="cards-grid-large"></div>
+                <div id="ml-container" class="cards-grid-large" style="display:none;"></div>
             </section>
             <div class="admin-panel-footer">
-                <p>Dados atualizados dinamicamente a partir do backend.</p>
             </div>
         </div>
     </div>

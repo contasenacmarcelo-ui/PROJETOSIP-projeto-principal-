@@ -3,9 +3,9 @@
 Script para iniciar o servidor Flask da API SIP
 """
 
-print("🚀 Iniciando SIP Backend API...")
-print("📍 URL: http://localhost:5000")
-print("📚 Documentação: http://localhost:5000")
+print(" Iniciando SIP Backend API...")
+print(" URL: http://localhost:5000")
+print(" Documentação: http://localhost:5000")
 
 try:
     from backend.database import create_app
@@ -23,14 +23,14 @@ try:
     from flask import send_from_directory, jsonify
     import os
 
-    print("✅ Imports realizados com sucesso")
+    print(" Imports realizados com sucesso")
 
     app = create_app()
-    print("✅ App criado")
+    print(" App criado")
 
     CORS(app)
     jwt.init_app(app)
-    print("✅ CORS e JWT configurados")
+    print(" CORS e JWT configurados")
 
     # Registrar blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -42,7 +42,7 @@ try:
     app.register_blueprint(notificacoes_bp, url_prefix='/api')
     app.register_blueprint(ml_bp, url_prefix='/api/ml')
     app.register_blueprint(admin_bp, url_prefix='/api')
-    print("✅ Blueprints registrados")
+    print(" Blueprints registrados")
 
     @app.route('/')
     def index():
@@ -53,13 +53,13 @@ try:
     def serve_static(filename):
         return send_from_directory(os.path.join(app.root_path, '..', 'public'), filename)
 
-    print("✅ Rotas configuradas")
+    print(" Rotas configuradas")
 
     if __name__ == '__main__':
-        print("🔥 Iniciando servidor...")
+        print(" Iniciando servidor...")
         app.run(debug=True, host='0.0.0.0', port=5000)
 
 except Exception as e:
-    print(f"❌ Erro durante inicialização: {e}")
+    print(f" Erro durante inicialização: {e}")
     import traceback
     traceback.print_exc()

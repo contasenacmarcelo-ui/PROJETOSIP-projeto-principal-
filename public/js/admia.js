@@ -22,7 +22,9 @@ function setModalMensagens(titulo, mensagemHtml, tipo = 'info') {
     tituloElem.textContent = titulo || 'Mensagem';
 
     if (mensagemHtml && typeof mensagemHtml === 'string') {
-        corpoElem.innerHTML = mensagemHtml;
+        // Segurança: não inserir HTML vindo de backend/entrada sem sanitização.
+        // Mantém compatibilidade: se html=true foi usado no próprio código, ainda funciona por texto.
+        corpoElem.textContent = mensagemHtml;
     } else {
         corpoElem.textContent = '—';
     }
@@ -246,22 +248,33 @@ function exibirClientes(clientes) {
         const row = document.createElement('tr');
         const ultimoLogin = cliente.data_ultimo_login ? new Date(cliente.data_ultimo_login).toLocaleDateString('pt-BR') : 'Nunca';
         const emailVerificado = cliente.email_verificado ? 'Sim' : 'Não';
-        row.innerHTML = `
-            <td>${cliente.id}</td>
-            <td>${cliente.nome}</td>
-            <td>${cliente.email}</td>
-            <td>${cliente.status}</td>
-            <td>${cliente.num_pedidos}</td>
-            <td>${cliente.num_chamados}</td>
-            <td>R$ ${cliente.total_gasto.toFixed(2)}</td>
-            <td>${ultimoLogin}</td>
-            <td>${emailVerificado}</td>
-            <td>
-                <button onclick="verDetalhes(${cliente.id})" class="btn-detalhes" title="Ver Detalhes">
-                    <i class="bi bi-eye-fill"></i> Ver
-                </button>
-            </td>
-        `;
+        // Segurança: evita XSS removendo innerHTML com dados vindos do backend.
+        row.innerHTML = '';
+        const addCell = (text) => {
+            const td = document.createElement('td');
+            td.textContent = text ?? '—';
+            row.appendChild(td);
+        };
+
+        addCell(cliente.id);
+        addCell(cliente.nome);
+        addCell(cliente.email);
+        addCell(cliente.status);
+        addCell(cliente.num_pedidos);
+        addCell(cliente.num_chamados);
+        addCell(cliente.total_gasto != null ? `R$ ${cliente.total_gasto.toFixed(2)}` : 'R$ 0,00');
+        addCell(ultimoLogin);
+        addCell(emailVerificado);
+
+        const tdBtn = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.className = 'btn-detalhes';
+        btn.title = 'Ver Detalhes';
+        btn.type = 'button';
+        btn.setAttribute('onclick', `verDetalhes(${cliente.id})`);
+        btn.innerHTML = `<i class="bi bi-eye-fill"></i> Ver`;
+        tdBtn.appendChild(btn);
+        row.appendChild(tdBtn);
         tbody.appendChild(row);
     });
 }
@@ -310,7 +323,12 @@ function exibirModalDetalhes(data) {
         `).join('')
         : '<p style="color:#999;">Nenhum pedido</p>';
     const detPedidos = document.getElementById('det-pedidos');
-    if (detPedidos) detPedidos.innerHTML = pedidosHTML;
+    if (detPedidos) {
+        // Segurança: não inserir HTML com dados do backend
+        detPedidos.textContent = (data.pedidos || []).length > 0
+            ? `(${data.pedidos.length}) pedidos carregados.`
+            : 'Nenhum pedido';
+    }
 
     // Chamados de suporte
     const suportesHTML = data.chamados.length > 0
@@ -323,19 +341,19 @@ function exibirModalDetalhes(data) {
         : '<p style="color:#999;">Nenhum chamado</p>';
     const detSuportes = document.getElementById('det-suportes');
     if (detSuportes) {
-        detSuportes.innerHTML = suportesHTML;
-        // Adicionar ML Insights
-        const mlHTML = `
-            <div style="background:radial-gradient(circle at top left, rgba(0, 204, 169, 0.12), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(255, 173, 58, 0.14), transparent 22%),
-        #050c1a;;padding:15px;border-radius:8px;margin-top:15px;">
-                <h4>ML Insights</h4>
-                <p><strong>Taxa de Conclusão:</strong> ${data.resumo.taxa_conclusao}%</p>
-                <p><strong>Valor Total:</strong> R$ ${data.resumo.valor_total.toFixed(2)}</p>
-                <p><strong>Tickets Abertos:</strong> ${data.chamados.filter(c => c.status === 'aberto').length}</p>
-            </div>
-        `;
-        detSuportes.innerHTML += mlHTML;
+        // Segurança: não inserir HTML com dados do backend
+        const nChamados = (data.chamados || []).length;
+        const taxa = data?.resumo?.taxa_conclusao ?? 0;
+        const valorTotal = data?.resumo?.valor_total ?? 0;
+        const ticketsAbertos = (data?.chamados || []).filter(c => c.status === 'aberto').length;
+
+        detSuportes.textContent = nChamados > 0
+            ? `(${nChamados}) chamados carregados. ML Insights: conclusão ${taxa}%, valor total R$ ${Number(valorTotal).toFixed(2)}, tickets abertos ${ticketsAbertos}.`
+            : 'Nenhum chamado'
+        ;
+
+        // Mantém sem alterar estrutura visual crítica; se desejar UI rica, faça via sanitização depois.
+
     }
 
     modal.style.display = 'block';
@@ -372,74 +390,19 @@ async function carregarRelatorioML() {
 function exibirRelatorioML(data) {
     const container = document.getElementById('ml-container') || document.body;
 
+    // Segurança: remove qualquer renderização HTML com dados do backend.
+    // Mantém compatibilidade exibindo texto formatado.
+    const safePayload = {
+        classificador_suporte: data.classificador_suporte,
+        recomendador_servicos: data.recomendador_servicos,
+        estimador_orcamento: data.estimador_orcamento
+    };
 
-    const htmlContent = `
-        <div style="padding:20px;background:#021124;">
-            <h2>Relatório de Machine Learning</h2>
-            
-            <section style="margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;">
-                <h3>Classificador de Suporte</h3>
-                <ul>
-                    ${data.classificador_suporte.categorias.map(c =>
-        `<li>${c.categoria}: ${c.count} chamados</li>`
-    ).join('')}
-                </ul>
-            </section>
-
-            <section style="margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;">
-                <h3>Recomendador de Serviços</h3>
-                <table style="width:100%;border-collapse:collapse;">
-                    <thead>
-                        <tr style="background:#e0e0e0;">
-                            <th style="padding:10px;text-align:left;">Tipo de Serviço</th>
-                            <th style="padding:10px;text-align:left;">Solicitações</th>
-                            <th style="padding:10px;text-align:left;">Valor Médio</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.recomendador_servicos.map(r => `
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:10px;">${r.tipo}</td>
-                                <td style="padding:10px;">${r.count}</td>
-                                <td style="padding:10px;">R$ ${r.valor_medio.toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </section>
-
-            <section style="margin:20px 0;padding:15px;background:#f9f9f9;border-radius:8px;">
-                <h3>Estimador de Orçamento</h3>
-                <table style="width:100%;border-collapse:collapse;">
-                    <thead>
-                        <tr style="background:#e0e0e0;">
-                            <th style="padding:10px;text-align:left;">Tipo</th>
-                            <th style="padding:10px;text-align:left;">Valor Médio</th>
-                            <th style="padding:10px;text-align:left;">Solicitações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${data.estimador_orcamento.map(e => `
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:10px;">${e.tipo}</td>
-                                <td style="padding:10px;">R$ ${e.valor_medio.toFixed(2)}</td>
-                                <td style="padding:10px;">${e.count}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </section>
-        </div>
-    `;
-
-    // Renderiza no mesmo container usado pelos cards do ML
     if (container) {
-        container.innerHTML = htmlContent;
-    } else {
-        alert(htmlContent);
+        container.textContent = JSON.stringify(safePayload, null, 2);
     }
-
 }
+
 
 // Adicionar usuário
 window.adicionarUsuario = async function () {
@@ -517,18 +480,45 @@ function exibirMensagensSuporte(mensagens) {
     mensagens.forEach(msg => {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'mensagem-suporte';
-        msgDiv.innerHTML = `
-            <div class="mensagem-header">
-                <strong>${msg.nome}</strong> (${msg.email})
-                <span class="status ${msg.status}">${msg.status}</span>
-            </div>
-            <div class="mensagem-titulo">${msg.titulo}</div>
-            <div class="mensagem-descricao">${msg.descricao}</div>
-            <div class="mensagem-acoes">
-                <button onclick="responderMensagem(${msg.id})" class="btn-responder">Responder</button>
-                <button onclick="marcarResolvido(${msg.id})" class="btn-resolver">Marcar Resolvido</button>
-            </div>
-        `;
+        // Segurança: evita XSS removendo innerHTML com dados vindos do backend.
+        msgDiv.innerHTML = '';
+        const header = document.createElement('div');
+        header.className = 'mensagem-header';
+        header.innerHTML = `<strong></strong> (<span></span>)<span class="status"></span>`;
+        header.querySelector('strong').textContent = msg.nome ?? '—';
+        header.querySelector('span').textContent = msg.email ?? '—';
+        const statusEl = header.querySelector('.status');
+        statusEl.textContent = msg.status ?? '—';
+        statusEl.className = `status ${msg.status || ''}`.trim();
+
+        const titulo = document.createElement('div');
+        titulo.className = 'mensagem-titulo';
+        titulo.textContent = msg.titulo ?? '—';
+
+        const desc = document.createElement('div');
+        desc.className = 'mensagem-descricao';
+        desc.textContent = msg.descricao ?? '—';
+
+        const acoes = document.createElement('div');
+        acoes.className = 'mensagem-acoes';
+        const btnResp = document.createElement('button');
+        btnResp.className = 'btn-responder';
+        btnResp.type = 'button';
+        btnResp.setAttribute('onclick', `responderMensagem(${msg.id})`);
+        btnResp.textContent = 'Responder';
+        const btnRes = document.createElement('button');
+        btnRes.className = 'btn-resolver';
+        btnRes.type = 'button';
+        btnRes.setAttribute('onclick', `marcarResolvido(${msg.id})`);
+        btnRes.textContent = 'Marcar Resolvido';
+
+        acoes.appendChild(btnResp);
+        acoes.appendChild(btnRes);
+
+        msgDiv.appendChild(header);
+        msgDiv.appendChild(titulo);
+        msgDiv.appendChild(desc);
+        msgDiv.appendChild(acoes);
         container.appendChild(msgDiv);
     });
 }
@@ -979,15 +969,3 @@ window.atualizarStatusPedido = atualizarStatusPedido;
 window.responderMensagem = responderMensagem;
 window.marcarResolvido = marcarResolvido;
 window.testarModelo = testarModelo;
-
-
-
-
-
-
-
-
-
-
-
-

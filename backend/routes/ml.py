@@ -14,7 +14,7 @@ ml_bp = Blueprint('ml', __name__)
 def api_classificar_suporte():
     """Classifica um chamado de suporte"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         descricao = data.get('descricao', '')
 
         if not descricao:
