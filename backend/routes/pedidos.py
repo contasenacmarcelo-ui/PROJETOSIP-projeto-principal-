@@ -2,6 +2,8 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..models import db, Pedido, Notificacao
 from datetime import datetime
+from ..ml_models.estimador_orcamento import estimar_orcamento
+
 
 pedidos_bp = Blueprint('pedidos', __name__)
 
@@ -30,13 +32,26 @@ def create_pedido():
         if 'prazo' in data and data['prazo']:
             prazo = datetime.strptime(data['prazo'], '%Y-%m-%d').date()
 
+        # Se valor_estimado não vier no request, calcula via ML (regras)
+        valor_estimado = data.get('valor_estimado')
+        if valor_estimado is None:
+            parametros = data.get('parametros') or {}
+            # tentativa simples de derivar algumas infos do request (se vier no front)
+            if not isinstance(parametros, dict):
+                parametros = {}
+
+            # fallback: tenta estimar usando apenas tipo_servico + parâmetros
+            estimativa = estimar_orcamento(data['tipo_servico'], parametros)
+            valor_estimado = estimativa.get('valor_estimado')
+
         pedido = Pedido(
             usuario_id=current_user_id,
             tipo_servico=data['tipo_servico'],
             descricao=data['descricao'],
-            valor_estimado=data.get('valor_estimado'),
+            valor_estimado=valor_estimado,
             prazo=prazo
         )
+
 
         db.session.add(pedido)
         db.session.commit()
