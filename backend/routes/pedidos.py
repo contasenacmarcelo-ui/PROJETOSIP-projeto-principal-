@@ -99,12 +99,24 @@ def update_pedido(pedido_id):
     # Campos que podem ser atualizados
     allowed_fields = ['status', 'valor_estimado']
 
+    status_antigo = pedido.status
     for field in allowed_fields:
         if field in data:
             setattr(pedido, field, data[field])
 
+    # Se ainda não existe estimativa (mesmo que o status não tenha mudado), tenta calcular.
+    if pedido.valor_estimado is None:
+        try:
+            parametros = data.get('parametros') if isinstance(data, dict) else {}
+            if not isinstance(parametros, dict):
+                parametros = {}
+
+            estimativa = estimar_orcamento(pedido.tipo_servico, parametros)
+            pedido.valor_estimado = estimativa.get('valor_estimado')
+        except Exception:
+            pass
+
     try:
-        db.session.commit()
         return jsonify({
             "message": "Pedido atualizado com sucesso",
             "pedido": pedido.to_dict()
