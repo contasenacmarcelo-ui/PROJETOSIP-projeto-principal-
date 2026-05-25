@@ -1,4 +1,4 @@
-// public/js/ml-executivo.js
+// frontend/js/ml-executivo.js
 
 async function main() {
   try {
@@ -27,8 +27,10 @@ async function main() {
 
   } catch (err) {
     console.error('❌ Erro ao iniciar ML executivo:', err);
-    document.getElementById('error-container').innerHTML =
-      `<p style="color: red;">Erro: ${err.message}</p>`;
+    const el = document.getElementById('error-container');
+    if (el) {
+      el.innerHTML = `<p style="color: red;">Erro: ${err.message}</p>`;
+    }
   }
 }
 
@@ -36,6 +38,8 @@ function renderizar_dashboard(resultados, dados) {
   console.log('🎨 Renderizando dashboard...');
 
   const container = document.getElementById('dashboard-container');
+  if (!container) return;
+
   container.innerHTML = `
     <div style="padding: 20px; font-family: Arial;">
       <h2>📊 ML Executivo - Resultados</h2>
@@ -70,6 +74,4 @@ function renderizar_dashboard(resultados, dados) {
 
 // Executar quando página carrega
 document.addEventListener('DOMContentLoaded', main);
-
-
 

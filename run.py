@@ -18,7 +18,9 @@ try:
     from backend.routes.contato import contato_bp
     from backend.routes.notificacoes import notificacoes_bp
     from backend.routes.ml import ml_bp
+    from backend.routes.ml_dashboard import ml_bp as ml_dashboard_bp
     from backend.routes.admin import admin_bp
+
     from flask_cors import CORS
     from flask import send_from_directory, jsonify
     import os
@@ -42,7 +44,9 @@ try:
     app.register_blueprint(notificacoes_bp, url_prefix='/api')
     app.register_blueprint(ml_bp, url_prefix='/api/ml')
     app.register_blueprint(admin_bp, url_prefix='/api')
+    app.register_blueprint(ml_dashboard_bp)
     print(" Blueprints registrados")
+
 
     @app.route('/')
     def index():
