@@ -122,6 +122,11 @@
                         <i class="bi bi-cash-coin"></i>
                         <button id="btnNovoPedido">Novo Pedido</button>
                     </div>
+                    <div class="card-suporte">
+                        <h1 class="title-2">Minhas Conversas</h1>
+                        <i class="bi bi-chat-dots-fill"></i>
+                        <button id="btnMinasConversas">Ver Conversas</button>
+                    </div>
                     <div class="card-3">
                         <h1 class="title-2">Suporte</h1>
                         <i class="bi bi-headset"></i>
@@ -177,6 +182,36 @@
                     </div>
                 </div>
 
+                <!-- MODAL MINHAS CONVERSAS -->
+                <div class="modal-cliente" id="modalConversas">
+                    <div class="modal-cliente-content">
+                        <button class="modal-cliente-close" id="fecharConversas">&times;</button>
+                        <h2>Minhas Conversas</h2>
+                        <div id="listaConversas">
+                            <div class="sem-conversas">
+                                <i class="bi bi-chat-dots"></i>
+                                <p>Nenhuma conversa encontrada.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODAL CONVERSA (CHAT) -->
+                <div class="modal-cliente" id="modalChat">
+                    <div class="modal-cliente-content modal-chat">
+                        <button class="modal-cliente-close" id="fecharChat">&times;</button>
+                        <h2 id="chatTitulo">Conversa de Suporte</h2>
+                        <div id="chatMensagens" class="chat-mensagens">
+                            <div class="loading">Carregando...</div>
+                        </div>
+                        <form id="formEnviarMensagem" class="form-enviar-msg">
+                            <input type="hidden" id="chatIdConversa" value="">
+                            <textarea id="chatInputMensagem" placeholder="Digite sua mensagem..." rows="2" required></textarea>
+                            <button type="submit" class="btn-cliente-enviar">Enviar</button>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- MODAL SUPORTE -->
                 <div class="modal-cliente" id="modalSuporte">
                     <div class="modal-cliente-content">
@@ -211,6 +246,7 @@
     <script src="../js/toast.js"></script>
     <script src="../js/shared.js"></script>
     <script src="../js/cliente.js"></script>
+    <script src="../js/cliente-chat.js"></script>
     <script src="../js/menu.js"></script>
 </body>
 

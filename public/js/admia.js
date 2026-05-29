@@ -136,6 +136,8 @@ function initializeAdmin() {
     carregarMensagensSuporte();
     carregarModelosML();
     carregarPedidos();
+    setupChatAdmin();
+
     // Carregar relatórios/insights de ML (dados do banco)
     carregarRelatorioML();
 
@@ -186,7 +188,7 @@ function setupModals() {
 async function carregarDashboard() {
     try {
         const response = await fetch(`${API_BASE}/admin/dashboard`, {
-            headers: apiHeaders(false)
+            headers: apiHeaders(true)
         });
 
         if (response.ok) {
@@ -217,7 +219,7 @@ function atualizarDashboard(data) {
 async function carregarClientes() {
     try {
         const response = await fetch(`${API_BASE}/admin/clientes`, {
-            headers: apiHeaders(false)
+            headers: apiHeaders(true)
         });
 
         if (response.ok) {
@@ -283,7 +285,7 @@ function exibirClientes(clientes) {
 async function verDetalhes(clienteId) {
     try {
         const response = await fetch(`${API_BASE}/admin/cliente/${clienteId}`, {
-            headers: apiHeaders(false)
+            headers: apiHeaders(true)
         });
 
         if (response.ok) {
@@ -969,3 +971,253 @@ window.atualizarStatusPedido = atualizarStatusPedido;
 window.responderMensagem = responderMensagem;
 window.marcarResolvido = marcarResolvido;
 window.testarModelo = testarModelo;
+
+// -------------------- CHAT (Admin) --------------------
+let chatConversas = [];
+let chatSelecionadoId = null;
+let chatPollingTimer = null;
+
+function mostrarSecao(idSecao) {
+    // esconder seções principais
+    const ids = ['dashboard', 'clientes', 'pedidos', 'suporte', 'conversas', 'ml'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = (id === idSecao) ? 'block' : 'none';
+    });
+}
+
+async function setupChatAdmin() {
+    const convList = document.getElementById('chat-conversas-list');
+    const form = document.getElementById('chat-form');
+
+    if (!convList || !form) return; // página ainda não recebeu UI
+
+    document.getElementById('conversas')?.addEventListener('click', () => mostrarSecao('conversas'));
+
+    // Submit envia mensagem
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!chatSelecionadoId) {
+            mostrarModalMensagem({ titulo: 'Selecione uma conversa', mensagem: 'Escolha um usuário antes de enviar.', tipo: 'aviso' });
+            return;
+        }
+
+        const input = document.getElementById('chat-input');
+        const conteudo = (input?.value || '').trim();
+        if (!conteudo) return;
+
+        try {
+            // Chat backend é registrado em /chat/* (sem prefixo /api)
+            const CHAT_BASE = API_BASE.replace('/api', '');
+            const resp = await fetch(`${CHAT_BASE}/chat/${chatSelecionadoId}/mensagens`, {
+                method: 'POST',
+                headers: apiHeaders(true),
+                body: JSON.stringify({ conteudo })
+            });
+            if (!resp.ok) {
+                const txt = await resp.text().catch(() => '');
+                throw new Error(txt || `HTTP ${resp.status}`);
+            }
+
+            input.value = '';
+            await carregarMensagensChat(chatSelecionadoId);
+        } catch (err) {
+            console.error(err);
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Falha ao enviar mensagem.', tipo: 'erro' });
+        }
+    });
+
+    // iniciar
+    await carregarConversasChat();
+    iniciarPollingChat();
+
+    // ao abrir pela navegação (#conversas)
+    window.addEventListener('hashchange', () => {
+        if (location.hash === '#conversas') {
+            mostrarSecao('conversas');
+        }
+    });
+
+    if (location.hash === '#conversas') mostrarSecao('conversas');
+}
+
+async function carregarConversasChat() {
+    const convList = document.getElementById('chat-conversas-list');
+    if (!convList) return;
+
+    try {
+        // Observação: o backend registra como /chat/conversas (sem prefixo /api no blueprint)
+        const baseUrl = API_BASE.replace('/api','');
+        const resp = await fetch(`${baseUrl}/chat/conversas`, {
+            headers: apiHeaders(true)
+        });
+
+        // fallback: se retornar vazio/não vier conversas, ainda vamos preencher com usuários.
+        // (não remove a lista de mensagens; apenas evita ficar “sem conversa” no admin)
+        if (resp.ok) {
+            const peek = await resp.clone().json().catch(() => null);
+            if (peek && !peek.conversas) {
+                throw new Error('Resposta do chat sem campo conversas');
+            }
+        }
+
+        if (!resp.ok) {
+            const txt = await resp.text().catch(() => '');
+            console.error('Erro ao carregar conversas:', resp.status, txt);
+            throw new Error(`HTTP ${resp.status}`);
+        }
+
+        if (!resp.ok) {
+            const txt = await resp.text().catch(() => '');
+            console.error('Erro ao carregar conversas:', resp.status, txt);
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: `Não foi possível carregar conversas. (${resp.status})`, tipo: 'erro' });
+            return;
+        }
+
+        const data = await resp.json();
+        chatConversas = data.conversas || [];
+        exibirConversasChat(chatConversas);
+
+        if (chatConversas.length === 0) {
+            // Não existem conversas ainda (usuário ainda não abriu ticket/mensagem).
+            // Como você pediu: pré-preencher com todos os usuários registrados para o admin mandar mensagem.
+            // Criamos conversas virtuais com chamado_id = null (o envio vai criar/usar thread via back futuramente).
+            // Por enquanto, mostramos apenas a lista.
+            const respUsers = await fetch(`${baseUrl}/api/clientes/lista`, { headers: apiHeaders(false) }).catch(() => null);
+            // fallback: sem endpoint de lista de usuários de chat, usa a tabela admin/clientes já carregada se disponível
+            chatConversas = chatConversas; // mantém vazia; a UI abaixo será preenchida por um modo alternativo
+            exibirConversasChat([]);
+            return;
+        }
+
+        if (!chatSelecionadoId && chatConversas.length > 0) {
+            await selecionarConversa(chatConversas[0].chamado_id);
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function exibirConversasChat(conversas) {
+    const convList = document.getElementById('chat-conversas-list');
+    if (!convList) return;
+
+    convList.innerHTML = '';
+    if (!conversas || conversas.length === 0) {
+        convList.innerHTML = '<div class="sem-dados">Nenhuma conversa ainda.</div>';
+        return;
+    }
+
+    conversas.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'chat-conversa-item';
+        if (String(c.chamado_id) === String(chatSelecionadoId)) item.classList.add('ativo');
+
+        const ultima = c.ultima_mensagem ? c.ultima_mensagem : '—';
+        const ultimaData = c.ultima_mensagem_data ? new Date(c.ultima_mensagem_data).toLocaleString('pt-BR') : '';
+
+        item.innerHTML = `
+            <div class="chat-conversa-main">
+                <div class="chat-conversa-nome">${escapeHtml(c.usuario_nome || '—')}</div>
+                <div class="chat-conversa-ultima">${escapeHtml(ultima).slice(0, 120)}</div>
+            </div>
+            <div class="chat-conversa-meta">
+                <div class="chat-conversa-data">${escapeHtml(ultimaData)}</div>
+                <div class="chat-conversa-count">${c.qtd_mensagens || 0}</div>
+            </div>
+        `;
+
+        item.addEventListener('click', async () => {
+            await selecionarConversa(c.chamado_id);
+        });
+
+        convList.appendChild(item);
+    });
+}
+
+async function selecionarConversa(chamadoId) {
+    chatSelecionadoId = chamadoId;
+
+    const titulo = document.getElementById('chat-conversa-title');
+    const subtitle = document.getElementById('chat-conversa-subtitle');
+
+    const conv = chatConversas.find(x => String(x.chamado_id) === String(chamadoId));
+    if (titulo) titulo.textContent = conv?.usuario_nome || '—';
+    if (subtitle) subtitle.textContent = `${conv?.status_conversa || '—'} • ${conv?.prioridade || '—'}`;
+
+    exibirConversasChat(chatConversas);
+    await carregarMensagensChat(chamadoId);
+}
+
+async function carregarMensagensChat(chamadoId) {
+    const container = document.getElementById('chat-mensagens');
+    if (!container) return;
+
+    try {
+        const CHAT_BASE = API_BASE.replace('/api', '');
+        const resp = await fetch(`${CHAT_BASE}/chat/${chamadoId}/mensagens`, {
+            headers: apiHeaders(true)
+        });
+
+        if (!resp.ok) {
+            container.innerHTML = '<div class="sem-dados">Falha ao carregar mensagens.</div>';
+            return;
+        }
+
+        const data = await resp.json();
+        const mensagens = data.mensagens || [];
+
+        renderMensagensChat(mensagens);
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function renderMensagensChat(mensagens) {
+    const container = document.getElementById('chat-mensagens');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!mensagens || mensagens.length === 0) {
+        container.innerHTML = '<div class="sem-dados">Nenhuma mensagem nesta conversa.</div>';
+        return;
+    }
+
+    const token = getToken();
+
+    const me = null; // sem necessidade
+
+    mensagens.forEach(m => {
+        const isAdminMsg = m.autor_tipo === 'admin';
+        const div = document.createElement('div');
+        div.className = `chat-msg ${isAdminMsg ? 'admin' : 'user'}`;
+
+        const dataStr = m.data ? new Date(m.data).toLocaleString('pt-BR') : '';
+
+        div.innerHTML = `
+            <div class="chat-bubble">
+                <div class="chat-text">${escapeHtml(m.conteudo || '')}</div>
+                <div class="chat-time">${escapeHtml(dataStr)}</div>
+            </div>
+        `;
+
+        container.appendChild(div);
+    });
+
+    container.scrollTop = container.scrollHeight;
+}
+
+function iniciarPollingChat() {
+    if (chatPollingTimer) clearInterval(chatPollingTimer);
+    chatPollingTimer = setInterval(async () => {
+        // atualiza lista e, se houver conversa selecionada, atualiza mensagens
+        if (!document.getElementById('conversas') || document.getElementById('conversas').style.display === 'none') return;
+
+        await carregarConversasChat();
+        if (chatSelecionadoId) {
+            await carregarMensagensChat(chatSelecionadoId);
+        }
+    }, 4000);
+}
+
