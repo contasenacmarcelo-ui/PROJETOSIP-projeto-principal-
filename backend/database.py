@@ -15,6 +15,7 @@ def create_app():
 
         # Seed do admin padrão (para ambientes limpos como Render)
         from .auth import criar_usuario
+        from .utils import find_user_by_email
 
         ADMIN_EMAIL = os.getenv('DEFAULT_ADMIN_EMAIL', 'admin@sip.local').lower()
         ADMIN_NOME = os.getenv('DEFAULT_ADMIN_NAME', 'Administrador')
@@ -22,9 +23,7 @@ def create_app():
         ADMIN_ROLE = os.getenv('DEFAULT_ADMIN_ROLE', 'admin')
 
         def _admin_exists():
-            # Busca por email descriptografado usando lógica do projeto
-            from .utils import find_user_by_email
-            return find_user_by_email(ADMIN_EMAIL)
+            return find_user_by_email(ADMIN_EMAIL) is not None
 
         if not _admin_exists():
             usuario_admin = criar_usuario(
@@ -34,11 +33,8 @@ def create_app():
                 telefone=None,
             )
             usuario_admin.role = ADMIN_ROLE
-            # Garantir que o admin esteja ativo
             usuario_admin.status = 'ativo'
             db.session.add(usuario_admin)
             db.session.commit()
 
     return app
-
-
