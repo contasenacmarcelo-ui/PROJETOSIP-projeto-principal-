@@ -105,7 +105,8 @@ btn.addEventListener("click", function (event) {
 
         console.log("Dados a enviar:", novo);
 
-        fetch('http://localhost:5000/api/auth/cadastro', {
+fetch('/api/auth/cadastro',
+            					//
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

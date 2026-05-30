@@ -23,15 +23,47 @@ def listar_conversas():
     Usuário: retorna somente suas conversas.
     """
 
-    current_user_id = int(get_jwt_identity())
-    is_admin = Usuario.query.get(current_user_id).role == 'admin'
+    identity = get_jwt_identity()
+    # flask-jwt-extended pode fornecer identity como int, str ou até outro tipo.
+    # Normalizamos para string e depois convertemos.
+    current_user_id = int(str(identity))
+
+    usuario_atual = Usuario.query.get(current_user_id)
+    if not usuario_atual:
+        return jsonify({'error': 'Usuário não encontrado'}), 404
+
+    is_admin = usuario_atual.role == 'admin'
 
     query = ChamadoSuporte.query
     if not is_admin:
         query = query.filter_by(usuario_id=current_user_id)
 
-    # Uma conversa = um chamado/thread
+    # Uma conversa = um chamado/thread.
+    # Importante: para o admin, queremos listar também usuários que ainda não têm mensagens.
     chamados = query.order_by(ChamadoSuporte.data.desc()).all()
+
+    # Se for admin e não houver chamados, não retorna lista vazia:
+    # devolve todos os usuários (role=user) como contatos “sem histórico”.
+    if is_admin and len(chamados) == 0:
+        usuarios = Usuario.query.filter(Usuario.role == 'user').all()
+        conversas = []
+        for u in usuarios:
+            conversas.append({
+                'chamado_id': None,
+                'usuario_id': u.id,
+                'usuario_nome': u.nome,
+                'usuario_email': u.email,
+                'titulo': None,
+                'descricao': None,
+                'status_conversa': None,
+                'prioridade': None,
+                'data_thread': None,
+                'ultima_mensagem': None,
+                'ultima_mensagem_data': None,
+                'ultima_mensagem_autor': None,
+                'qtd_mensagens': 0,
+            })
+        return jsonify({'total': len(conversas), 'conversas': conversas}), 200
 
     conversas = []
     for c in chamados:

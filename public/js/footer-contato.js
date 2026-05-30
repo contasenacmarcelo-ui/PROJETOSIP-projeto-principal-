@@ -92,7 +92,7 @@ function enviarMensagem(nome, email, telefone, mensagem) {
     };
 
     // Enviar para o banco de dados
-    fetch('http://localhost:5000/api/contato', {
+fetch('/api/contato',
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

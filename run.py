@@ -73,7 +73,9 @@ try:
     if __name__ == '__main__':
 
         print(" Iniciando servidor...")
-        app.run(debug=True, host='0.0.0.0', port=5000)
+        debug = os.getenv('DEBUG', '0') == '1'
+        port = int(os.getenv('PORT', '5000'))
+        app.run(debug=debug, host='0.0.0.0', port=port)
 
 except Exception as e:
     print(f" Erro durante inicialização: {e}")

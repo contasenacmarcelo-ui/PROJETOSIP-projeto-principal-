@@ -136,7 +136,8 @@ with app.app_context():
         # Teste D: Testar como usuário normal
         user = Usuario.query.filter_by(role='user').first()
         if user:
-            token_user = create_access_token(identity=user.id)
+            # Garantir identidade como string (evita "Subject must be a string")
+            token_user = create_access_token(identity=str(user.id))
             headers_user = {
                 'Authorization': f'Bearer {token_user}',
                 'Content-Type': 'application/json'

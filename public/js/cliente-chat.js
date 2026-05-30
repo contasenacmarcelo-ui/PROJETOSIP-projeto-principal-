@@ -118,7 +118,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
             const items = data?.conversas || [];
 
-            // Normaliza o formato esperado pela renderização atual
+            // Normaliza o formato esperado pela renderização atual.
+            // Importante: manter o id exato vindo do backend (chamado_id)
+            // para evitar abrir conversa/msgs de outro usuário.
             conversasCliente = items.map(c => ({
                 id: c.chamado_id,
                 titulo: c.titulo,
@@ -127,6 +129,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 data: c.data_thread,
             }));
 
+            // Atualiza o hidden input apenas ao abrir conversa
             renderizarConversas();
 
         } catch (error) {
@@ -143,10 +146,23 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!listaConversas) return;
 
         if (!conversasCliente || conversasCliente.length === 0) {
+            // Quando o usuário não tiver histórico no backend, ainda exibimos uma “porta de entrada”:
+            // (admin + suporte) para ele conseguir iniciar conversa.
+            const fallbackId = '1';
             listaConversas.innerHTML = `
-                <div class="sem-conversas">
-                    <i class="bi bi-chat-dots"></i>
-                    <p>Nenhuma conversa encontrada.</p>
+                <div class="sem-conversas" style="padding:14px;">
+                    <div style="color:rgba(255,255,255,0.9);font-weight:800;display:flex;align-items:center;gap:8px;justify-content:center;">
+                        <i class="bi bi-headset" style="color:rgba(0,156,134,1);"></i>
+                        <span>Suporte / Admin</span>
+                    </div>
+                    <p style="color:rgba(255,255,255,0.65);margin-top:8px;text-align:center;">
+                        Nenhuma conversa encontrada.
+                    </p>
+                    <div style="margin-top:12px;display:flex;justify-content:center;">
+                        <button type="button" class="btn-abrir-conversa" onclick="abrirConversa(${fallbackId})">
+                            <i class="bi bi-chat-fill"></i> Abrir
+                        </button>
+                    </div>
                 </div>`;
             return;
         }

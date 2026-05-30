@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+
+# SQLite (database local)
+*.db
+*.sqlite3
+*.sqlite
+
+# Flask / env
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Builds / dist
+build/
+dist/
+
+# Node (ignored even if present)
+node_modules/
+
+# Media uploads (if any)
+uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+.DS_Store
+Thumbs.db
+
