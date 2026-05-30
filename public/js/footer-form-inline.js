@@ -112,12 +112,13 @@ if (formContatoInline) {
 
         // Enviar para o banco de dados
 fetch('/api/contato',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(contato)
-        })
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(contato)
+            })
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Erro: ${response.status}`);
