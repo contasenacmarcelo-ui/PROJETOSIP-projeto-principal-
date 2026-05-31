@@ -1028,9 +1028,9 @@ async function setupChatAdmin() {
                 return;
             }
 
-            // Chat backend (routes no blueprint chat.py) é montado sob /chat/* dentro do app.
-            // Mantemos o prefixo /api para compatibilidade com o restante do painel.
-            const resp = await fetch(`${API_BASE}/chat/${chamadoId}/mensagens`, {
+            // Chat backend (routes no blueprint chat.py) ADMIN: /api/admin/suporte/mensagens
+            const resp = await fetch(`${API_BASE}/admin/suporte/mensagens`, {
+
                 method: 'POST',
                 headers: apiHeaders(true),
                 body: JSON.stringify({ conteudo })
@@ -1314,8 +1314,8 @@ async function carregarMensagensChat(chamadoId) {
     const container = document.getElementById('chat-mensagens');
     if (!container) return;
 
-    // TRATAMENTO CRÍTICO: seed/conversa sem histórico vem com chamado_id=null.
-    // Nesse caso, NÃO chamamos o backend (evita bombardeio de 404 no polling).
+    // TRAVA 2 (ID nulo falhou): se chamadoId for nulo/undefined/'null', não chama backend.
+    // Apenas injeta o vazio na tela.
     if (chamadoId === null || chamadoId === undefined) {
         container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para iniciar a conversa!</div>";
         return;
@@ -1330,13 +1330,15 @@ async function carregarMensagensChat(chamadoId) {
     console.log(`→ Carregando mensagens para ID: ${idStr}`);
 
     try {
-        // Endpoint correto do chat (backend chat.py): /api/chat/<int:chamado_id>/mensagens
-        const url = `${API_BASE}/chat/${idStr}/mensagens`;
+        // ADMIN: mensagens do suporte ficam em /api/admin/suporte/mensagens (chat.py / blueprint de admin)
+        // Obs: como o endpoint admin pode ou não requerer parâmetros, montamos por querystring.
+        const url = `${API_BASE}/admin/suporte/mensagens?chamado_id=${encodeURIComponent(idStr)}`;
         console.log(`→ Requisição: GET ${url}`);
 
         const resp = await fetch(url, {
             headers: apiHeaders(true)
         });
+
 
 
         // Tratamento de 404 (conversa inexistente / seed com chamado_id=null)
