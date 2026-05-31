@@ -1083,11 +1083,18 @@ async function carregarConversasChat() {
 
         const data = await resp.json();
         chatConversas = data.conversas || [];
+        
+        // DEBUG: Log da estrutura de dados do backend
+        if (chatConversas.length > 0) {
+            console.log('✓ Conversas carregadas do backend:', chatConversas[0]);
+            console.log('  Chaves disponíveis:', Object.keys(chatConversas[0]));
+        }
+        
         exibirConversasChat(chatConversas);
 
         // Se não houver conversas, carregar lista de clientes como fallback
         if (chatConversas.length === 0) {
-            console.log('Nenhuma conversa encontrada. Carregando lista de clientes como fallback...');
+            console.warn('⚠ Nenhuma conversa encontrada. Carregando lista de clientes como fallback...');
             try {
                 const respClientes = await fetch(`${API_BASE}/admin/clientes`, {
                     headers: apiHeaders(true)
@@ -1096,17 +1103,37 @@ async function carregarConversasChat() {
                     const dataClientes = await respClientes.json();
                     const clientes = dataClientes.clientes || [];
                     
+                    if (clientes.length > 0) {
+                        console.log('✓ Clientes carregados:', clientes[0]);
+                        console.log('  Chaves disponíveis:', Object.keys(clientes[0]));
+                    }
+                    
                     // Criar conversas virtuais a partir dos clientes
-                    chatConversas = clientes.map((cliente, idx) => ({
-                        chamado_id: cliente.id,
-                        usuario_nome: cliente.nome,
-                        usuario_email: cliente.email,
-                        ultima_mensagem: '(Nenhuma mensagem)',
-                        ultima_mensagem_data: null,
-                        qtd_mensagens: 0,
-                        status_conversa: 'novo',
-                        prioridade: 'normal'
-                    }));
+                    chatConversas = clientes.map((cliente, idx) => {
+                        // IMPORTANTE: Tentar múltiplas chaves possíveis para o ID
+                        const idCliente = cliente.id || cliente.usuario_id || cliente.chamado_id || null;
+                        
+                        if (!idCliente) {
+                            console.error('⚠ Cliente sem ID válido:', cliente);
+                        }
+                        
+                        return {
+                            chamado_id: idCliente,
+                            usuario_id: idCliente,
+                            usuario_nome: cliente.nome || cliente.usuario_nome || '—',
+                            usuario_email: cliente.email || cliente.usuario_email || '—',
+                            ultima_mensagem: '(Nenhuma mensagem)',
+                            ultima_mensagem_data: null,
+                            qtd_mensagens: 0,
+                            status_conversa: 'novo',
+                            prioridade: 'normal'
+                        };
+                    });
+                    
+                    console.log(`✓ ${chatConversas.length} clientes mapeados como conversas virtuais.`);
+                    if (chatConversas.length > 0) {
+                        console.log('  Primeiro mapeado:', chatConversas[0]);
+                    }
                     
                     console.log(`${chatConversas.length} clientes carregados como conversas virtuais.`);
                     exibirConversasChat(chatConversas);
@@ -1117,11 +1144,23 @@ async function carregarConversasChat() {
             }
         }
 
-        // Pré-seleção automática do primeiro cliente após carregar a lista (sempre, seja real ou virtual)
-        // IMPORTANTE: Executa SEMPRE após a lista estar preenchida
+        // Pré-seleção automática APÓS HTML estar renderizado
+        // IMPORTANTE: Usar setTimeout para garantir que DOM está pronto
         if ((!usuarioSelecionadoId || usuarioSelecionadoId === null) && chatConversas.length > 0) {
-            console.log(`Selecionando automaticamente primeiro cliente: ${chatConversas[0].usuario_nome} (ID: ${chatConversas[0].chamado_id})`);
-            await selecionarConversa(chatConversas[0].chamado_id);
+            setTimeout(async () => {
+                // Validar que tem dados seguros
+                const primeiroCliente = chatConversas[0];
+                const idPrimeiro = primeiroCliente.chamado_id || primeiroCliente.usuario_id || primeiroCliente.id;
+                
+                if (!idPrimeiro || idPrimeiro === null || String(idPrimeiro).trim() === '') {
+                    console.error('❌ Não foi possível fazer pré-seleção: ID do primeiro cliente é inválido');
+                    console.error('   Objeto:', primeiroCliente);
+                    return;
+                }
+                
+                console.log(`✓ Pré-seleção: ${primeiroCliente.usuario_nome} (ID: ${idPrimeiro})`);
+                await selecionarConversa(idPrimeiro);
+            }, 100); // Delay pequeno para garantir renderização
         }
     } catch (err) {
         console.error(err);
@@ -1138,13 +1177,31 @@ function exibirConversasChat(conversas) {
         return;
     }
 
-    conversas.forEach(c => {
+    conversas.forEach((c, idx) => {
+        // DEBUG: Validar estrutura de cada conversa
+        if (!c.chamado_id && !c.usuario_id && !c.id) {
+            console.error(`⚠ Conversa ${idx} sem ID identificável:`, c);
+            return; // Pular conversa sem ID
+        }
+        
+        // IMPORTANTE: Tentar múltiplas propriedades possíveis para o ID
+        const idConversa = c.chamado_id || c.usuario_id || c.id;
+        
+        console.log(`[${idx}] Renderizando conversa:`, {
+            id: idConversa,
+            nome: c.usuario_nome || c.nome,
+            objeto: c
+        });
+        
         const item = document.createElement('div');
         item.className = 'chat-conversa-item';
-        item.setAttribute('data-id', c.chamado_id); // Armazenar ID no atributo data-id para referência
         
-        // Marca como ativo se o usuarioSelecionadoId corresponder ao chamado_id
-        if (String(c.chamado_id) === String(usuarioSelecionadoId)) {
+        // Injetar ID SEGURO no atributo data-id
+        item.setAttribute('data-id', String(idConversa));
+        item.setAttribute('data-debug-id', String(idConversa));
+        
+        // Marca como ativo se o usuarioSelecionadoId corresponder
+        if (String(idConversa) === String(usuarioSelecionadoId)) {
             item.classList.add('ativo');
         }
 
@@ -1164,6 +1221,22 @@ function exibirConversasChat(conversas) {
 
         // Evento de clique para selecionar conversa
         item.addEventListener('click', async () => {
+            // Capturar ID do atributo data-id
+            const idSelecionado = item.getAttribute('data-id');
+            
+            // TRAVA 1: Validar ID antes de qualquer ação
+            if (!idSelecionado || idSelecionado === 'null' || idSelecionado === 'undefined' || String(idSelecionado).trim() === '') {
+                console.error('❌ BLOQUEADO: Tentativa de selecionar com ID inválido:', idSelecionado);
+                mostrarModalMensagem({
+                    titulo: 'Erro de Dados',
+                    mensagem: 'Não foi possível identificar o cliente. Recarregue a página.',
+                    tipo: 'erro'
+                });
+                return;
+            }
+            
+            console.log(`✓ Clique válido: ID ${idSelecionado} (${c.usuario_nome})`);
+            
             // IMPORTANTE: Remover classe 'ativo' de TODOS os itens primeiro
             document.querySelectorAll('.chat-conversa-item').forEach(el => {
                 el.classList.remove('ativo');
@@ -1172,10 +1245,8 @@ function exibirConversasChat(conversas) {
             // Adicionar classe 'ativo' apenas ao item clicado
             item.classList.add('ativo');
             
-            // Capturar ID do atributo data-id e definir variável global
-            const idSelecionado = item.getAttribute('data-id');
+            // Definir variável global
             usuarioSelecionadoId = idSelecionado;
-            console.log(`Usuário selecionado: ID ${idSelecionado} (${c.usuario_nome})`);
             
             // Carregar conversa e mensagens
             await selecionarConversa(idSelecionado);
@@ -1186,15 +1257,29 @@ function exibirConversasChat(conversas) {
 }
 
 async function selecionarConversa(chamadoId) {
-    // Validação: garantir que chamadoId é válido
-    if (!chamadoId || chamadoId === null || chamadoId === undefined) {
-        console.warn('selecionarConversa chamado com ID inválido:', chamadoId);
+    // TRAVA RIGOROSA 1: Verificar tipo e valor
+    if (chamadoId === null || chamadoId === undefined) {
+        console.error('❌ BLOQUEADO: chamadoId é null/undefined');
         return;
     }
     
-    // Define a variável global usuarioSelecionadoId quando a conversa é selecionada
-    usuarioSelecionadoId = chamadoId;
-    console.log(`Conversa selecionada programaticamente: ID ${chamadoId}`);
+    // TRAVA RIGOROSA 2: Converter para string e validar
+    const idStr = String(chamadoId).trim();
+    if (idStr === '' || idStr === 'null' || idStr === 'undefined' || idStr === 'NaN') {
+        console.error(`❌ BLOQUEADO: ID inválido após conversão: "${idStr}"`);
+        return;
+    }
+    
+    // TRAVA RIGOROSA 3: Validar que é um número ou ID válido
+    const idNum = parseInt(idStr, 10);
+    if (isNaN(idNum) && !/^[a-zA-Z0-9_-]+$/.test(idStr)) {
+        console.error(`❌ BLOQUEADO: ID não é número nem UUID válido: "${idStr}"`);
+        return;
+    }
+    
+    // Só aqui é seguro prosseguir
+    usuarioSelecionadoId = idStr;
+    console.log(`✓ Conversa selecionada: ID ${idStr}`);
 
     const titulo = document.getElementById('chat-conversa-title');
     const subtitle = document.getElementById('chat-conversa-subtitle');
@@ -1211,28 +1296,46 @@ async function carregarMensagensChat(chamadoId) {
     const container = document.getElementById('chat-mensagens');
     if (!container) return;
 
-    // null/undefined/empty protection (evita GET /chat/null/mensagens)
-    if (chamadoId === null || chamadoId === undefined) return;
-    if (String(chamadoId).trim() === '' || String(chamadoId) === 'null' || String(chamadoId) === 'undefined') return;
+    // TRAVA FINAL: Proteção rigorosa contra IDs inválidos
+    if (chamadoId === null || chamadoId === undefined) {
+        console.error('❌ carregarMensagensChat: ID é null/undefined');
+        return;
+    }
+    
+    const idStr = String(chamadoId).trim();
+    if (idStr === '' || idStr === 'null' || idStr === 'undefined' || idStr === 'NaN') {
+        console.error(`❌ carregarMensagensChat: ID inválido "${idStr}"`);
+        return;
+    }
+    
+    console.log(`→ Carregando mensagens para ID: ${idStr}`);
 
     try {
         const CHAT_BASE = API_BASE.replace('/api', '');
-        const resp = await fetch(`${CHAT_BASE}/chat/${chamadoId}/mensagens`, {
+        const url = `${CHAT_BASE}/chat/${idStr}/mensagens`;
+        console.log(`→ Requisição: GET ${url}`);
+        
+        const resp = await fetch(url, {
             headers: apiHeaders(true)
         });
 
 
         if (!resp.ok) {
-            container.innerHTML = '<div class="sem-dados">Falha ao carregar mensagens.</div>';
+            console.error(`❌ Erro ao carregar mensagens: HTTP ${resp.status}`);
+            const txt = await resp.text().catch(() => '');
+            console.error('   Response:', txt);
+            container.innerHTML = '<div class="sem-dados">Falha ao carregar mensagens. (Verifique console)</div>';
             return;
         }
 
         const data = await resp.json();
         const mensagens = data.mensagens || [];
+        console.log(`✓ ${mensagens.length} mensagens carregadas`);
 
         renderMensagensChat(mensagens);
     } catch (err) {
-        console.error(err);
+        console.error('❌ Erro ao carregar mensagens:', err);
+        container.innerHTML = '<div class="sem-dados">Erro ao carregar mensagens.</div>';
     }
 }
 
