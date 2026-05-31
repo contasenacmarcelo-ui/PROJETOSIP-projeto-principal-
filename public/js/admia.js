@@ -1156,11 +1156,16 @@ async function carregarMensagensChat(chamadoId) {
     const container = document.getElementById('chat-mensagens');
     if (!container) return;
 
+    // null/undefined/empty protection (evita GET /chat/null/mensagens)
+    if (chamadoId === null || chamadoId === undefined) return;
+    if (String(chamadoId).trim() === '' || String(chamadoId) === 'null' || String(chamadoId) === 'undefined') return;
+
     try {
         const CHAT_BASE = API_BASE.replace('/api', '');
         const resp = await fetch(`${CHAT_BASE}/chat/${chamadoId}/mensagens`, {
             headers: apiHeaders(true)
         });
+
 
         if (!resp.ok) {
             container.innerHTML = '<div class="sem-dados">Falha ao carregar mensagens.</div>';
