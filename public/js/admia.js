@@ -1016,25 +1016,32 @@ async function setupChatAdmin() {
         try {
             const convSelecionada = chatConversas.find(c => String(c.chamado_id || c.usuario_id || c.id) === String(usuarioSelecionadoId));
             const chamadoId = convSelecionada?.chamado_id ?? null;
+            const usuarioIdParaCriar = convSelecionada?.usuario_id ?? null;
 
-            // Se não existe thread (banco recriado / teste), não tenta chamar rota que exige chamado_id.
-            if (chamadoId === null || chamadoId === undefined || String(chamadoId).trim() === '' || String(chamadoId) === 'null' || String(chamadoId) === 'undefined') {
-                // Mantém UI limpa: orienta o admin a iniciar um chamado (ou aguarda seed criar).
+            // Chat backend (routes no blueprint chat.py) ADMIN: /api/admin/suporte/mensagens
+            // Se chamado_id existir, segue o fluxo normal.
+            // Se chamado_id for null, criamos/abrimos o chamado enviando usuario_id.
+            const isChamadoNulo = (chamadoId === null || chamadoId === undefined || String(chamadoId).trim() === '' || String(chamadoId) === 'null' || String(chamadoId) === 'undefined');
+
+            if (isChamadoNulo && (usuarioIdParaCriar === null || usuarioIdParaCriar === undefined)) {
                 mostrarModalMensagem({
-                    titulo: 'Sem conversa ainda',
-                    mensagem: 'Nenhuma mensagem trocada ainda. Selecione/crie um chamado para iniciar o chat.',
+                    titulo: 'Sem usuário selecionado',
+                    mensagem: 'Selecione um cliente válido antes de enviar.',
                     tipo: 'aviso'
                 });
                 return;
             }
 
-            // Chat backend (routes no blueprint chat.py) ADMIN: /api/admin/suporte/mensagens
-            const resp = await fetch(`${API_BASE}/admin/suporte/mensagens`, {
+            const payload = isChamadoNulo
+                ? { conteudo, usuario_id: usuarioIdParaCriar }
+                : { conteudo, chamado_id: chamadoId };
 
+            const resp = await fetch(`${API_BASE}/admin/suporte/mensagens`, {
                 method: 'POST',
                 headers: apiHeaders(true),
-                body: JSON.stringify({ conteudo })
+                body: JSON.stringify(payload)
             });
+
             if (!resp.ok) {
                 const txt = await resp.text().catch(() => '');
                 throw new Error(txt || `HTTP ${resp.status}`);
@@ -1271,18 +1278,23 @@ function exibirConversasChat(conversas) {
 }
 
 async function selecionarConversa(chamadoId) {
-    // TRAVA RIGOROSA 1: Verificar tipo e valor
+    // Permite seleção mesmo quando a conversa do banco está com chamado_id=null.
+    // Nesse caso, o usuário precisa conseguir abrir o chat iniciando um chamado ao enviar a 1ª mensagem.
+
+    // TRAVA RIGOROSA 1: chamadoId precisa existir como ID do cliente/conversa (pelo menos usuario_id/id).
     if (chamadoId === null || chamadoId === undefined) {
+        // Não bloqueia; apenas aborta o nome/seleção quando não existe ID de forma alguma.
         console.error('❌ BLOQUEADO: chamadoId é null/undefined');
         return;
     }
 
     // TRAVA RIGOROSA 2: Converter para string e validar
     const idStr = String(chamadoId).trim();
-    if (idStr === '' || idStr === 'null' || idStr === 'undefined' || idStr === 'NaN') {
+    if (idStr === '' || idStr === 'NaN' || idStr === 'undefined') {
         console.error(`❌ BLOQUEADO: ID inválido após conversão: "${idStr}"`);
         return;
     }
+
 
     // TRAVA RIGOROSA 3: Validar que é um número ou ID válido
     const idNum = parseInt(idStr, 10);
@@ -1314,18 +1326,19 @@ async function carregarMensagensChat(chamadoId) {
     const container = document.getElementById('chat-mensagens');
     if (!container) return;
 
-    // TRAVA 2 (ID nulo falhou): se chamadoId for nulo/undefined/'null', não chama backend.
-    // Apenas injeta o vazio na tela.
+    // Se não houver chamado_id ainda, não chamamos o backend de mensagens.
+    // O chat continua selecionável; a primeira mensagem deve abrir/criar o chamado.
     if (chamadoId === null || chamadoId === undefined) {
-        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para iniciar a conversa!</div>";
+        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para abrir um chamado/iniciar o chat com este usuário.</div>";
         return;
     }
 
     const idStr = String(chamadoId).trim();
     if (idStr === '' || idStr === 'null' || idStr === 'undefined' || idStr === 'NaN') {
-        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para iniciar a conversa!</div>";
+        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para abrir um chamado/iniciar o chat com este usuário.</div>";
         return;
     }
+
 
     console.log(`→ Carregando mensagens para ID: ${idStr}`);
 
