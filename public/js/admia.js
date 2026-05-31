@@ -1028,9 +1028,9 @@ async function setupChatAdmin() {
                 return;
             }
 
-            // Chat backend é registrado em /chat/* (sem prefixo /api)
-            const CHAT_BASE = API_BASE.replace('/api', '');
-            const resp = await fetch(`${CHAT_BASE}/chat/${chamadoId}/mensagens`, {
+            // Chat backend (routes no blueprint chat.py) é montado sob /chat/* dentro do app.
+            // Mantemos o prefixo /api para compatibilidade com o restante do painel.
+            const resp = await fetch(`${API_BASE}/chat/${chamadoId}/mensagens`, {
                 method: 'POST',
                 headers: apiHeaders(true),
                 body: JSON.stringify({ conteudo })
