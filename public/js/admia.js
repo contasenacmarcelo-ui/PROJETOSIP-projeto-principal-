@@ -218,9 +218,11 @@ function atualizarDashboard(data) {
 // Carregar lista de clientes
 async function carregarClientes() {
     try {
+        // Endpoint correto do backend (admin clientes)
         const response = await fetch(`${API_BASE}/admin/clientes`, {
             headers: apiHeaders(true)
         });
+
 
         if (response.ok) {
             const data = await response.json();
@@ -1087,6 +1089,7 @@ async function carregarConversasChat() {
             // fallback: sem endpoint de lista de usuários de chat, usa a tabela admin/clientes já carregada se disponível
             chatConversas = chatConversas; // mantém vazia; a UI abaixo será preenchida por um modo alternativo
             exibirConversasChat([]);
+
             return;
         }
 
