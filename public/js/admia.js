@@ -1032,15 +1032,62 @@ async function setupChatAdmin() {
                 return;
             }
 
-            const payload = isChamadoNulo
-                ? { conteudo, usuario_id: usuarioIdParaCriar }
-                : { conteudo, chamado_id: chamadoId };
+            // Fluxo correto conforme backend/chat.py:
+            // - existe POST /chat/<int:chamado_id>/mensagens
+            // - se chamado_id está null, primeiro abrimos/registramos um Chamado via endpoint admin
+            //   que crie o ChamadoSuporte (em suporte.py: /suporte ou /chamados com admin usuário pode usar /chamados).
+            // Como o endpoint de admin para criação de chamados pode variar no projeto,
+            // usamos /suporte (suporte_bp: /suporte POST) enviando {titulo, descricao, ...}.
+            // Porém nossa UI só tem "conteudo". Para manter compatibilidade, mapeamos:
+            // titulo = 'Chat iniciado'
+            // descricao = conteudo
+            // Em seguida enviamos mensagem com o novo chamado_id retornado.
 
-            const resp = await fetch(`${API_BASE}/admin/suporte/mensagens`, {
+            const token = getToken();
+            if (!token) {
+                mostrarModalMensagem({
+                    titulo: 'Sessão expirada',
+                    mensagem: 'Faça login novamente para continuar.',
+                    tipo: 'erro'
+                });
+                window.location.href = '/public/pages/login.html';
+                return;
+            }
+
+            let novoChamadoId = null;
+
+            if (!isChamadoNulo) {
+                novoChamadoId = chamadoId;
+            } else {
+                const respChamado = await fetch(`${API_BASE}/suporte`, {
+                    method: 'POST',
+                    headers: apiHeaders(true),
+                    body: JSON.stringify({
+                        titulo: 'Chat iniciado',
+                        descricao: conteudo,
+                        usuario_id: usuarioIdParaCriar
+                    })
+                });
+
+                if (!respChamado.ok) {
+                    const txt = await respChamado.text().catch(() => '');
+                    throw new Error(txt || `HTTP ${respChamado.status}`);
+                }
+
+                const dataChamado = await respChamado.json();
+                novoChamadoId = dataChamado?.chamado?.id ?? dataChamado?.chamado_id ?? null;
+
+                if (novoChamadoId === null || novoChamadoId === undefined || String(novoChamadoId).trim() === '' || String(novoChamadoId) === 'null') {
+                    throw new Error('Backend não retornou chamado_id ao iniciar o chat.');
+                }
+            }
+
+            const resp = await fetch(`${API_BASE}/chat/${novoChamadoId}/mensagens`, {
                 method: 'POST',
                 headers: apiHeaders(true),
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ conteudo })
             });
+
 
             if (!resp.ok) {
                 const txt = await resp.text().catch(() => '');
