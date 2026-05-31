@@ -1014,9 +1014,23 @@ async function setupChatAdmin() {
         if (!conteudo) return;
 
         try {
+            const convSelecionada = chatConversas.find(c => String(c.chamado_id || c.usuario_id || c.id) === String(usuarioSelecionadoId));
+            const chamadoId = convSelecionada?.chamado_id ?? null;
+
+            // Se não existe thread (banco recriado / teste), não tenta chamar rota que exige chamado_id.
+            if (chamadoId === null || chamadoId === undefined || String(chamadoId).trim() === '' || String(chamadoId) === 'null' || String(chamadoId) === 'undefined') {
+                // Mantém UI limpa: orienta o admin a iniciar um chamado (ou aguarda seed criar).
+                mostrarModalMensagem({
+                    titulo: 'Sem conversa ainda',
+                    mensagem: 'Nenhuma mensagem trocada ainda. Selecione/crie um chamado para iniciar o chat.',
+                    tipo: 'aviso'
+                });
+                return;
+            }
+
             // Chat backend é registrado em /chat/* (sem prefixo /api)
             const CHAT_BASE = API_BASE.replace('/api', '');
-            const resp = await fetch(`${CHAT_BASE}/chat/${usuarioSelecionadoId}/mensagens`, {
+            const resp = await fetch(`${CHAT_BASE}/chat/${chamadoId}/mensagens`, {
                 method: 'POST',
                 headers: apiHeaders(true),
                 body: JSON.stringify({ conteudo })
@@ -1027,7 +1041,7 @@ async function setupChatAdmin() {
             }
 
             input.value = '';
-            await carregarMensagensChat(usuarioSelecionadoId);
+            await carregarMensagensChat(chamadoId);
         } catch (err) {
             console.error(err);
             mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Falha ao enviar mensagem.', tipo: 'erro' });
