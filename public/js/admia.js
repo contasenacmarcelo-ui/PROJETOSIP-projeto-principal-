@@ -1334,10 +1334,25 @@ async function carregarMensagensChat(chamadoId) {
         });
 
 
+        // Tratamento de 404 (conversa inexistente / seed com chamado_id=null)
         if (!resp.ok) {
-            console.error(`❌ Erro ao carregar mensagens: HTTP ${resp.status}`);
-            const txt = await resp.text().catch(() => '');
-            console.error('   Response:', txt);
+            let payload = null;
+            try {
+                payload = await resp.json();
+            } catch {
+                // fallback: tenta ler texto
+                try { payload = { error: await resp.text().catch(() => '') }; } catch {}
+            }
+
+            const errorMsg = payload?.error || '';
+
+            // Se for conversa não encontrada, mostramos UI limpa
+            if (resp.status === 404 || String(errorMsg).toLowerCase().includes('conversa não encontrada')) {
+                container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para iniciar a conversa!</div>";
+                return;
+            }
+
+            console.error(`❌ Erro ao carregar mensagens: HTTP ${resp.status}`, payload);
             container.innerHTML = '<div class="sem-dados">Falha ao carregar mensagens. (Verifique console)</div>';
             return;
         }
@@ -1348,6 +1363,7 @@ async function carregarMensagensChat(chamadoId) {
 
         renderMensagensChat(mensagens);
     } catch (err) {
+        // Mantém UI limpa em falhas esperadas do chat
         console.error('❌ Erro ao carregar mensagens:', err);
         container.innerHTML = '<div class="sem-dados">Erro ao carregar mensagens.</div>';
     }
