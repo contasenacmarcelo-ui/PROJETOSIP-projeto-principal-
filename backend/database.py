@@ -17,10 +17,10 @@ def create_app():
         from .auth import criar_usuario
         from .utils import find_user_by_email
 
-        ADMIN_EMAIL = os.getenv('DEFAULT_ADMIN_EMAIL', 'admin@sip.local').lower()
-        ADMIN_NOME = os.getenv('DEFAULT_ADMIN_NAME', 'Administrador')
-        ADMIN_SENHA = os.getenv('DEFAULT_ADMIN_PASSWORD', 'senha123')
-        ADMIN_ROLE = os.getenv('DEFAULT_ADMIN_ROLE', 'admin')
+        ADMIN_EMAIL = 'admin@sip.com'.lower()
+        ADMIN_NOME = 'Administrador'
+        ADMIN_SENHA = 'admin123'
+        ADMIN_ROLE = 'admin'
 
         def _admin_exists():
             return find_user_by_email(ADMIN_EMAIL) is not None
@@ -35,6 +35,9 @@ def create_app():
             usuario_admin.role = ADMIN_ROLE
             usuario_admin.status = 'ativo'
             db.session.add(usuario_admin)
+
+            # commit explícito (obrigatório)
             db.session.commit()
+
 
     return app
