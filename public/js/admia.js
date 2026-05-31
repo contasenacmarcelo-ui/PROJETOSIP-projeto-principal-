@@ -1069,7 +1069,7 @@ async function carregarConversasChat() {
     try {
         // Observação: o backend registra como /chat/conversas (sem prefixo /api no blueprint)
         const baseUrl = API_BASE.replace('/api','');
-        const resp = await fetch(`${baseUrl}/chat/conversas`, {
+            const resp = await fetch(`${baseUrl}/chat/conversas`, {
             headers: apiHeaders(true)
         });
 
@@ -1314,25 +1314,26 @@ async function carregarMensagensChat(chamadoId) {
     const container = document.getElementById('chat-mensagens');
     if (!container) return;
 
-    // TRAVA FINAL: Proteção rigorosa contra IDs inválidos
+    // TRATAMENTO CRÍTICO: seed/conversa sem histórico vem com chamado_id=null.
+    // Nesse caso, NÃO chamamos o backend (evita bombardeio de 404 no polling).
     if (chamadoId === null || chamadoId === undefined) {
-        console.error('❌ carregarMensagensChat: ID é null/undefined');
+        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para iniciar a conversa!</div>";
         return;
     }
-    
+
     const idStr = String(chamadoId).trim();
     if (idStr === '' || idStr === 'null' || idStr === 'undefined' || idStr === 'NaN') {
-        console.error(`❌ carregarMensagensChat: ID inválido "${idStr}"`);
+        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para iniciar a conversa!</div>";
         return;
     }
-    
+
     console.log(`→ Carregando mensagens para ID: ${idStr}`);
 
     try {
-        const CHAT_BASE = API_BASE.replace('/api', '');
-        const url = `${CHAT_BASE}/chat/${idStr}/mensagens`;
+        // Endpoint correto do chat (backend chat.py): /api/chat/<int:chamado_id>/mensagens
+        const url = `${API_BASE}/chat/${idStr}/mensagens`;
         console.log(`→ Requisição: GET ${url}`);
-        
+
         const resp = await fetch(url, {
             headers: apiHeaders(true)
         });
@@ -1415,8 +1416,10 @@ function iniciarPollingChat() {
         if (!document.getElementById('conversas') || document.getElementById('conversas').style.display === 'none') return;
 
         await carregarConversasChat();
-        // Verifica variável global usuarioSelecionadoId para polling
-        if (usuarioSelecionadoId) {
+        // Verifica variável global usuarioSelecionadoId para polling.
+        // IMPORTANTE: se a conversa selecionada ainda não existe no banco, o backend retorna chamado_id=null.
+        // Nesse caso, não chamamos o endpoint de mensagens.
+        if (usuarioSelecionadoId !== null && usuarioSelecionadoId !== undefined && String(usuarioSelecionadoId).trim() !== '' && String(usuarioSelecionadoId) !== 'null' && String(usuarioSelecionadoId) !== 'undefined') {
             await carregarMensagensChat(usuarioSelecionadoId);
         }
     }, 4000);
