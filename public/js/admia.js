@@ -976,9 +976,8 @@ window.testarModelo = testarModelo;
 
 // -------------------- CHAT (Admin) --------------------
 let chatConversas = [];
-let chatSelecionadoId = null;
 
-// Controla a conversa/cliente selecionado para envio no chat.
+// Controla o cliente selecionado para envio de mensagens (variável global de controle)
 let usuarioSelecionadoId = null;
 
 let chatPollingTimer = null;
@@ -1003,7 +1002,9 @@ async function setupChatAdmin() {
     // Submit envia mensagem
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        if (!chatSelecionadoId) {
+        
+        // Validação reforçada: verifica se usuarioSelecionadoId está preenchido
+        if (!usuarioSelecionadoId || usuarioSelecionadoId === null || usuarioSelecionadoId === undefined || String(usuarioSelecionadoId).trim() === '') {
             mostrarModalMensagem({ titulo: 'Selecione uma conversa', mensagem: 'Escolha um usuário antes de enviar.', tipo: 'aviso' });
             return;
         }
@@ -1015,7 +1016,7 @@ async function setupChatAdmin() {
         try {
             // Chat backend é registrado em /chat/* (sem prefixo /api)
             const CHAT_BASE = API_BASE.replace('/api', '');
-            const resp = await fetch(`${CHAT_BASE}/chat/${chatSelecionadoId}/mensagens`, {
+            const resp = await fetch(`${CHAT_BASE}/chat/${usuarioSelecionadoId}/mensagens`, {
                 method: 'POST',
                 headers: apiHeaders(true),
                 body: JSON.stringify({ conteudo })
@@ -1026,7 +1027,7 @@ async function setupChatAdmin() {
             }
 
             input.value = '';
-            await carregarMensagensChat(chatSelecionadoId);
+            await carregarMensagensChat(usuarioSelecionadoId);
         } catch (err) {
             console.error(err);
             mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Falha ao enviar mensagem.', tipo: 'erro' });
@@ -1084,20 +1085,42 @@ async function carregarConversasChat() {
         chatConversas = data.conversas || [];
         exibirConversasChat(chatConversas);
 
+        // Se não houver conversas, carregar lista de clientes como fallback
         if (chatConversas.length === 0) {
-            // Não existem conversas ainda (usuário ainda não abriu ticket/mensagem).
-            // Como você pediu: pré-preencher com todos os usuários registrados para o admin mandar mensagem.
-            // Criamos conversas virtuais com chamado_id = null (o envio vai criar/usar thread via back futuramente).
-            // Por enquanto, mostramos apenas a lista.
-            const respUsers = await fetch(`${baseUrl}/api/clientes/lista`, { headers: apiHeaders(false) }).catch(() => null);
-            // fallback: sem endpoint de lista de usuários de chat, usa a tabela admin/clientes já carregada se disponível
-            chatConversas = chatConversas; // mantém vazia; a UI abaixo será preenchida por um modo alternativo
-            exibirConversasChat([]);
-
-            return;
+            console.log('Nenhuma conversa encontrada. Carregando lista de clientes como fallback...');
+            try {
+                const respClientes = await fetch(`${API_BASE}/admin/clientes`, {
+                    headers: apiHeaders(true)
+                });
+                if (respClientes.ok) {
+                    const dataClientes = await respClientes.json();
+                    const clientes = dataClientes.clientes || [];
+                    
+                    // Criar conversas virtuais a partir dos clientes
+                    chatConversas = clientes.map((cliente, idx) => ({
+                        chamado_id: cliente.id,
+                        usuario_nome: cliente.nome,
+                        usuario_email: cliente.email,
+                        ultima_mensagem: '(Nenhuma mensagem)',
+                        ultima_mensagem_data: null,
+                        qtd_mensagens: 0,
+                        status_conversa: 'novo',
+                        prioridade: 'normal'
+                    }));
+                    
+                    console.log(`${chatConversas.length} clientes carregados como conversas virtuais.`);
+                    exibirConversasChat(chatConversas);
+                }
+            } catch (err) {
+                console.error('Erro ao carregar clientes como fallback:', err);
+                exibirConversasChat([]);
+            }
         }
 
-        if (!chatSelecionadoId && chatConversas.length > 0) {
+        // Pré-seleção automática do primeiro cliente após carregar a lista (sempre, seja real ou virtual)
+        // IMPORTANTE: Executa SEMPRE após a lista estar preenchida
+        if ((!usuarioSelecionadoId || usuarioSelecionadoId === null) && chatConversas.length > 0) {
+            console.log(`Selecionando automaticamente primeiro cliente: ${chatConversas[0].usuario_nome} (ID: ${chatConversas[0].chamado_id})`);
             await selecionarConversa(chatConversas[0].chamado_id);
         }
     } catch (err) {
@@ -1118,7 +1141,12 @@ function exibirConversasChat(conversas) {
     conversas.forEach(c => {
         const item = document.createElement('div');
         item.className = 'chat-conversa-item';
-        if (String(c.chamado_id) === String(chatSelecionadoId)) item.classList.add('ativo');
+        item.setAttribute('data-id', c.chamado_id); // Armazenar ID no atributo data-id para referência
+        
+        // Marca como ativo se o usuarioSelecionadoId corresponder ao chamado_id
+        if (String(c.chamado_id) === String(usuarioSelecionadoId)) {
+            item.classList.add('ativo');
+        }
 
         const ultima = c.ultima_mensagem ? c.ultima_mensagem : '—';
         const ultimaData = c.ultima_mensagem_data ? new Date(c.ultima_mensagem_data).toLocaleString('pt-BR') : '';
@@ -1134,8 +1162,23 @@ function exibirConversasChat(conversas) {
             </div>
         `;
 
+        // Evento de clique para selecionar conversa
         item.addEventListener('click', async () => {
-            await selecionarConversa(c.chamado_id);
+            // IMPORTANTE: Remover classe 'ativo' de TODOS os itens primeiro
+            document.querySelectorAll('.chat-conversa-item').forEach(el => {
+                el.classList.remove('ativo');
+            });
+            
+            // Adicionar classe 'ativo' apenas ao item clicado
+            item.classList.add('ativo');
+            
+            // Capturar ID do atributo data-id e definir variável global
+            const idSelecionado = item.getAttribute('data-id');
+            usuarioSelecionadoId = idSelecionado;
+            console.log(`Usuário selecionado: ID ${idSelecionado} (${c.usuario_nome})`);
+            
+            // Carregar conversa e mensagens
+            await selecionarConversa(idSelecionado);
         });
 
         convList.appendChild(item);
@@ -1143,7 +1186,15 @@ function exibirConversasChat(conversas) {
 }
 
 async function selecionarConversa(chamadoId) {
-    chatSelecionadoId = chamadoId;
+    // Validação: garantir que chamadoId é válido
+    if (!chamadoId || chamadoId === null || chamadoId === undefined) {
+        console.warn('selecionarConversa chamado com ID inválido:', chamadoId);
+        return;
+    }
+    
+    // Define a variável global usuarioSelecionadoId quando a conversa é selecionada
+    usuarioSelecionadoId = chamadoId;
+    console.log(`Conversa selecionada programaticamente: ID ${chamadoId}`);
 
     const titulo = document.getElementById('chat-conversa-title');
     const subtitle = document.getElementById('chat-conversa-subtitle');
@@ -1223,12 +1274,13 @@ function renderMensagensChat(mensagens) {
 function iniciarPollingChat() {
     if (chatPollingTimer) clearInterval(chatPollingTimer);
     chatPollingTimer = setInterval(async () => {
-        // atualiza lista e, se houver conversa selecionada, atualiza mensagens
+        // atualiza lista e, se houver usuário selecionado, atualiza mensagens
         if (!document.getElementById('conversas') || document.getElementById('conversas').style.display === 'none') return;
 
         await carregarConversasChat();
-        if (chatSelecionadoId) {
-            await carregarMensagensChat(chatSelecionadoId);
+        // Verifica variável global usuarioSelecionadoId para polling
+        if (usuarioSelecionadoId) {
+            await carregarMensagensChat(usuarioSelecionadoId);
         }
     }, 4000);
 }
