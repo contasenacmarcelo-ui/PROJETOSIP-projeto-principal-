@@ -977,6 +977,10 @@ window.testarModelo = testarModelo;
 // -------------------- CHAT (Admin) --------------------
 let chatConversas = [];
 let chatSelecionadoId = null;
+
+// Controla a conversa/cliente selecionado para envio no chat.
+let usuarioSelecionadoId = null;
+
 let chatPollingTimer = null;
 
 function mostrarSecao(idSecao) {
