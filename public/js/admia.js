@@ -1276,21 +1276,21 @@ async function selecionarConversa(chamadoId) {
         console.error('❌ BLOQUEADO: chamadoId é null/undefined');
         return;
     }
-    
+
     // TRAVA RIGOROSA 2: Converter para string e validar
     const idStr = String(chamadoId).trim();
     if (idStr === '' || idStr === 'null' || idStr === 'undefined' || idStr === 'NaN') {
         console.error(`❌ BLOQUEADO: ID inválido após conversão: "${idStr}"`);
         return;
     }
-    
+
     // TRAVA RIGOROSA 3: Validar que é um número ou ID válido
     const idNum = parseInt(idStr, 10);
     if (isNaN(idNum) && !/^[a-zA-Z0-9_-]+$/.test(idStr)) {
         console.error(`❌ BLOQUEADO: ID não é número nem UUID válido: "${idStr}"`);
         return;
     }
-    
+
     // Só aqui é seguro prosseguir
     usuarioSelecionadoId = idStr;
     console.log(`✓ Conversa selecionada: ID ${idStr}`);
@@ -1298,8 +1298,12 @@ async function selecionarConversa(chamadoId) {
     const titulo = document.getElementById('chat-conversa-title');
     const subtitle = document.getElementById('chat-conversa-subtitle');
 
-    const conv = chatConversas.find(x => String(x.chamado_id) === String(chamadoId));
-    if (titulo) titulo.textContent = conv?.usuario_nome || '—';
+    // IMPORTANTE: atualizar cabeçalho IMEDIATAMENTE com o nome clicado.
+    // Pode acontecer de a conversa não ter histórico (404) e mesmo assim precisamos exibir o nome.
+    const conv = chatConversas.find(x => String(x.chamado_id || x.usuario_id || x.id) === String(chamadoId));
+    const nomeCliente = conv?.usuario_nome || '—';
+
+    if (titulo) titulo.textContent = nomeCliente;
     if (subtitle) subtitle.textContent = `${conv?.status_conversa || '—'} • ${conv?.prioridade || '—'}`;
 
     exibirConversasChat(chatConversas);
