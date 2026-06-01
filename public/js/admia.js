@@ -271,16 +271,59 @@ function exibirClientes(clientes) {
         addCell(emailVerificado);
 
         const tdBtn = document.createElement('td');
-        const btn = document.createElement('button');
-        btn.className = 'btn-detalhes';
-        btn.title = 'Ver Detalhes';
-        btn.type = 'button';
-        btn.setAttribute('onclick', `verDetalhes(${cliente.id})`);
-        btn.innerHTML = `<i class="bi bi-eye-fill"></i> Ver`;
-        tdBtn.appendChild(btn);
+
+        const btnDetalhes = document.createElement('button');
+        btnDetalhes.className = 'btn-detalhes';
+        btnDetalhes.title = 'Ver Detalhes';
+        btnDetalhes.type = 'button';
+        btnDetalhes.setAttribute('onclick', `verDetalhes(${cliente.id})`);
+        btnDetalhes.innerHTML = `<i class="bi bi-eye-fill"></i> Ver`;
+        tdBtn.appendChild(btnDetalhes);
+
+        const btnApagar = document.createElement('button');
+        btnApagar.className = 'btn-apagar';
+        btnApagar.title = 'Apagar usuário';
+        btnApagar.type = 'button';
+        btnApagar.setAttribute('onclick', `apagarCliente(${cliente.id})`);
+        btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
+        tdBtn.appendChild(btnApagar);
+
         row.appendChild(tdBtn);
         tbody.appendChild(row);
     });
+}
+
+async function apagarCliente(clienteId) {
+    if (!confirm('Tem certeza que deseja apagar este cliente? Esta ação não pode ser desfeita.')) return;
+
+    try {
+        const token = getToken();
+        if (!token) {
+            mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
+            window.location.href = '/public/pages/login.html';
+            return;
+        }
+
+        const resp = await fetch(`${API_BASE}/admin/cliente/${clienteId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const txt = await resp.text().catch(() => '');
+        let data = null;
+        try { data = txt ? JSON.parse(txt) : null; } catch { data = null; }
+
+        if (!resp.ok) {
+            throw new Error(data?.error || txt || `HTTP ${resp.status}`);
+        }
+
+        mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Cliente apagado com sucesso.', tipo: 'sucesso' });
+        carregarClientes();
+        carregarDashboard();
+    } catch (e) {
+        console.error('Erro ao apagar cliente:', e);
+        mostrarModalMensagem({ titulo: 'Erro', mensagem: e?.message || 'Erro ao apagar cliente.', tipo: 'erro' });
+    }
 }
 
 // Ver detalhes do cliente
@@ -516,8 +559,15 @@ function exibirMensagensSuporte(mensagens) {
         btnRes.setAttribute('onclick', `marcarResolvido(${msg.id})`);
         btnRes.textContent = 'Marcar Resolvido';
 
+        const btnApagar = document.createElement('button');
+        btnApagar.className = 'btn-apagar';
+        btnApagar.type = 'button';
+        btnApagar.setAttribute('onclick', `apagarChamadoSuporte(${msg.id})`);
+        btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
+
         acoes.appendChild(btnResp);
         acoes.appendChild(btnRes);
+        acoes.appendChild(btnApagar);
 
         msgDiv.appendChild(header);
         msgDiv.appendChild(titulo);
@@ -604,6 +654,41 @@ async function marcarResolvido(chamadoId) {
     }
 
 }
+
+async function apagarChamadoSuporte(chamadoId) {
+    if (!confirm('Tem certeza que deseja apagar esta mensagem/chamado de suporte? Esta ação não pode ser desfeita.')) return;
+
+    const token = getToken();
+    if (!token) {
+        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
+        window.location.href = '/public/pages/login.html';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const txt = await response.text().catch(() => '');
+        let data = null;
+        try { data = txt ? JSON.parse(txt) : null; } catch { data = null; }
+
+        if (response.ok) {
+            mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Chamado apagado com sucesso.', tipo: 'sucesso' });
+            carregarMensagensSuporte();
+        } else {
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: data?.error || txt || 'Erro ao apagar chamado.', tipo: 'erro' });
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao apagar chamado.', tipo: 'erro' });
+    }
+}
+
 
 // Carregar modelos de Machine Learning
 async function carregarModelosML() {
@@ -728,11 +813,48 @@ function exibirPedidos(pedidos) {
                 <button onclick="atualizarStatusPedido(${pedido.id}, 'concluido')" class="btn-status">
                     <i class="bi bi-check-circle"></i> Concluir
                 </button>
+                <button onclick="apagarPedido(${pedido.id})" class="btn-apagar">
+                    <i class="bi bi-trash"></i> Apagar
+                </button>
             </div>
         `;
         container.appendChild(card);
     });
 }
+
+async function apagarPedido(pedidoId) {
+    if (!confirm('Tem certeza que deseja apagar este pedido? Esta ação não pode ser desfeita.')) return;
+
+    try {
+        const token = getToken();
+        if (!token) {
+            mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
+            window.location.href = '/public/pages/login.html';
+            return;
+        }
+
+        const response = await fetch(`${API_BASE}/admin/pedido/${pedidoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const txt = await response.text().catch(() => '');
+        let data = null;
+        try { data = txt ? JSON.parse(txt) : null; } catch { data = null; }
+
+        if (!response.ok) {
+            throw new Error(data?.error || txt || `HTTP ${response.status}`);
+        }
+
+        mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Pedido apagado com sucesso.', tipo: 'sucesso' });
+        carregarPedidos();
+        carregarDashboard();
+    } catch (e) {
+        console.error('Erro ao apagar pedido:', e);
+        mostrarModalMensagem({ titulo: 'Erro', mensagem: e?.message || 'Erro ao apagar pedido.', tipo: 'erro' });
+    }
+}
+
 
 // Ver detalhes do pedido
 async function verDetalhesPedido(pedidoId) {
@@ -972,6 +1094,9 @@ window.verDetalhesPedido = verDetalhesPedido;
 window.atualizarStatusPedido = atualizarStatusPedido;
 window.responderMensagem = responderMensagem;
 window.marcarResolvido = marcarResolvido;
+window.apagarCliente = apagarCliente;
+window.apagarPedido = apagarPedido;
+window.apagarChamadoSuporte = apagarChamadoSuporte;
 window.testarModelo = testarModelo;
 
 // -------------------- CHAT (Admin) --------------------
