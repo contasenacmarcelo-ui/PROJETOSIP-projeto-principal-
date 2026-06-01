@@ -263,30 +263,49 @@ def promover_admin(usuario_id):
 @jwt_required()
 @require_admin()
 def get_mensagens_suporte():
-    """Retorna todas as mensagens de suporte para admin"""
+    """Retorna mensagens de suporte agrupadas por cliente (1 linha por usuário).
+
+    Usa o chamado mais recente por usuario_id para condensar a barra lateral do admin.
+    """
     try:
-        chamados = ChamadoSuporte.query.all()
-        
-        mensagens = []
-        for chamado in chamados:
+        # Para cada usuário, pega o último chamado (por data desc, depois id desc).
+        subq = (
+            db.session.query(
+                ChamadoSuporte.usuario_id.label('usuario_id'),
+                func.max(ChamadoSuporte.data).label('ultima_data')
+            )
+            .group_by(ChamadoSuporte.usuario_id)
+            .subquery()
+        )
+
+        ultimos = (
+            ChamadoSuporte.query
+            .join(subq, (ChamadoSuporte.usuario_id == subq.c.usuario_id) & (ChamadoSuporte.data == subq.c.ultima_data))
+            .order_by(ChamadoSuporte.usuario_id.asc(), ChamadoSuporte.id.desc())
+            .all()
+        )
+
+        # Pode haver empate de timestamp; garantimos 1 registro por usuario_id.
+        mensagens_por_usuario = {}
+        for chamado in ultimos:
+            if chamado.usuario_id in mensagens_por_usuario:
+                continue
             usuario = Usuario.query.get(chamado.usuario_id)
-            mensagens.append({
+            mensagens_por_usuario[chamado.usuario_id] = {
                 "id": chamado.id,
                 "usuario_id": chamado.usuario_id,
-                "nome": usuario.nome,
-                "email": usuario.email,
+                "nome": usuario.nome if usuario else '—',
+                "email": usuario.email if usuario else '—',
                 "titulo": chamado.titulo,
                 "descricao": chamado.descricao,
                 "categoria_classificada": chamado.categoria_classificada,
                 "prioridade": chamado.prioridade,
                 "status": chamado.status,
-                "data": chamado.data.isoformat()
-            })
-        
-        return jsonify({
-            "total": len(mensagens),
-            "mensagens": mensagens
-        }), 200
+                "data": chamado.data.isoformat() if chamado.data else None
+            }
+
+        mensagens = list(mensagens_por_usuario.values())
+        return jsonify({"total": len(mensagens), "mensagens": mensagens}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

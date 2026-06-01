@@ -123,11 +123,30 @@
                         <button id="btnNovoPedido">Novo Pedido</button>
                     </div>
                     <div class="card-3">
+                        <h1 class="title-2">Minhas Conversas</h1>
+                        <i class="bi bi-chat-dots-fill"></i>
+                        <button id="btnMinhasConversas">Ver Conversas</button>
+                    </div>
+                    <div class="card-3">
                         <h1 class="title-2">Suporte</h1>
                         <i class="bi bi-headset"></i>
                         <button id="btnObterSuporte">Obter Suporte</button>
                     </div>
                 </section>
+
+                <!-- MODAL MINHAS CONVERSAS -->
+                <div class="modal-cliente" id="modalMinhasConversas">
+                    <div class="modal-cliente-content">
+                        <button class="modal-cliente-close" id="fecharMinhasConversas">&times;</button>
+                        <h2>Minhas Conversas</h2>
+                        <div id="listaConversas">
+                            <div class="sem-pedidos">
+                                <i class="bi bi-chat-dots-fill"></i>
+                                <p>Nenhuma conversa encontrada.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- MODAL VER DETALHES -->
                 <div class="modal-cliente" id="modalDetalhes">
