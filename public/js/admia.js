@@ -136,6 +136,8 @@ function initializeAdmin() {
     carregarMensagensSuporte();
     carregarModelosML();
     carregarPedidos();
+    setupChatAdmin();
+
     // Carregar relatórios/insights de ML (dados do banco)
     carregarRelatorioML();
 
@@ -186,7 +188,7 @@ function setupModals() {
 async function carregarDashboard() {
     try {
         const response = await fetch(`${API_BASE}/admin/dashboard`, {
-            headers: apiHeaders(false)
+            headers: apiHeaders(true)
         });
 
         if (response.ok) {
@@ -216,9 +218,11 @@ function atualizarDashboard(data) {
 // Carregar lista de clientes
 async function carregarClientes() {
     try {
+        // Endpoint correto do backend (admin clientes)
         const response = await fetch(`${API_BASE}/admin/clientes`, {
-            headers: apiHeaders(false)
+            headers: apiHeaders(true)
         });
+
 
         if (response.ok) {
             const data = await response.json();
@@ -283,7 +287,7 @@ function exibirClientes(clientes) {
 async function verDetalhes(clienteId) {
     try {
         const response = await fetch(`${API_BASE}/admin/cliente/${clienteId}`, {
-            headers: apiHeaders(false)
+            headers: apiHeaders(true)
         });
 
         if (response.ok) {
@@ -969,3 +973,517 @@ window.atualizarStatusPedido = atualizarStatusPedido;
 window.responderMensagem = responderMensagem;
 window.marcarResolvido = marcarResolvido;
 window.testarModelo = testarModelo;
+
+// -------------------- CHAT (Admin) --------------------
+let chatConversas = [];
+
+// Controla o cliente selecionado para envio de mensagens (variável global de controle)
+let usuarioSelecionadoId = null;
+
+let chatPollingTimer = null;
+
+function mostrarSecao(idSecao) {
+    // esconder seções principais
+    const ids = ['dashboard', 'clientes', 'pedidos', 'suporte', 'conversas', 'ml'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = (id === idSecao) ? 'block' : 'none';
+    });
+}
+
+async function setupChatAdmin() {
+    const convList = document.getElementById('chat-conversas-list');
+    const form = document.getElementById('chat-form');
+
+    if (!convList || !form) return; // página ainda não recebeu UI
+
+    document.getElementById('conversas')?.addEventListener('click', () => mostrarSecao('conversas'));
+
+    // Submit envia mensagem
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Validação reforçada: verifica se usuarioSelecionadoId está preenchido
+        if (!usuarioSelecionadoId || usuarioSelecionadoId === null || usuarioSelecionadoId === undefined || String(usuarioSelecionadoId).trim() === '') {
+            mostrarModalMensagem({ titulo: 'Selecione uma conversa', mensagem: 'Escolha um usuário antes de enviar.', tipo: 'aviso' });
+            return;
+        }
+
+        const input = document.getElementById('chat-input');
+        const conteudo = (input?.value || '').trim();
+        if (!conteudo) return;
+
+        try {
+            const convSelecionada = chatConversas.find(c => String(c.chamado_id || c.usuario_id || c.id) === String(usuarioSelecionadoId));
+            const chamadoId = convSelecionada?.chamado_id ?? null;
+            const usuarioIdParaCriar = convSelecionada?.usuario_id ?? null;
+
+            // Chat backend (routes no blueprint chat.py) ADMIN: /api/admin/suporte/mensagens
+            // Se chamado_id existir, segue o fluxo normal.
+            // Se chamado_id for null, criamos/abrimos o chamado enviando usuario_id.
+            const isChamadoNulo = (chamadoId === null || chamadoId === undefined || String(chamadoId).trim() === '' || String(chamadoId) === 'null' || String(chamadoId) === 'undefined');
+
+            if (isChamadoNulo && (usuarioIdParaCriar === null || usuarioIdParaCriar === undefined)) {
+                mostrarModalMensagem({
+                    titulo: 'Sem usuário selecionado',
+                    mensagem: 'Selecione um cliente válido antes de enviar.',
+                    tipo: 'aviso'
+                });
+                return;
+            }
+
+            // Fluxo correto conforme backend/chat.py:
+            // - existe POST /chat/<int:chamado_id>/mensagens
+            // - se chamado_id está null, primeiro abrimos/registramos um Chamado via endpoint admin
+            //   que crie o ChamadoSuporte (em suporte.py: /suporte ou /chamados com admin usuário pode usar /chamados).
+            // Como o endpoint de admin para criação de chamados pode variar no projeto,
+            // usamos /suporte (suporte_bp: /suporte POST) enviando {titulo, descricao, ...}.
+            // Porém nossa UI só tem "conteudo". Para manter compatibilidade, mapeamos:
+            // titulo = 'Chat iniciado'
+            // descricao = conteudo
+            // Em seguida enviamos mensagem com o novo chamado_id retornado.
+
+            const token = getToken();
+            if (!token) {
+                mostrarModalMensagem({
+                    titulo: 'Sessão expirada',
+                    mensagem: 'Faça login novamente para continuar.',
+                    tipo: 'erro'
+                });
+                window.location.href = '/public/pages/login.html';
+                return;
+            }
+
+            let novoChamadoId = null;
+
+            if (!isChamadoNulo) {
+                novoChamadoId = chamadoId;
+            } else {
+                const respChamado = await fetch(`${API_BASE}/suporte`, {
+                    method: 'POST',
+                    headers: apiHeaders(true),
+                    body: JSON.stringify({
+                        titulo: 'Chat iniciado',
+                        descricao: conteudo,
+                        usuario_id: usuarioIdParaCriar
+                    })
+                });
+
+                if (!respChamado.ok) {
+                    const txt = await respChamado.text().catch(() => '');
+                    throw new Error(txt || `HTTP ${respChamado.status}`);
+                }
+
+                const dataChamado = await respChamado.json();
+                novoChamadoId = dataChamado?.chamado?.id ?? dataChamado?.chamado_id ?? null;
+
+                if (novoChamadoId === null || novoChamadoId === undefined || String(novoChamadoId).trim() === '' || String(novoChamadoId) === 'null') {
+                    throw new Error('Backend não retornou chamado_id ao iniciar o chat.');
+                }
+            }
+
+            const resp = await fetch(`${API_BASE}/chat/${novoChamadoId}/mensagens`, {
+                method: 'POST',
+                headers: apiHeaders(true),
+                body: JSON.stringify({ conteudo })
+            });
+
+
+            if (!resp.ok) {
+                const txt = await resp.text().catch(() => '');
+                throw new Error(txt || `HTTP ${resp.status}`);
+            }
+
+            input.value = '';
+            await carregarMensagensChat(chamadoId);
+        } catch (err) {
+            console.error(err);
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Falha ao enviar mensagem.', tipo: 'erro' });
+        }
+    });
+
+    // iniciar
+    await carregarConversasChat();
+    iniciarPollingChat();
+
+    // ao abrir pela navegação (#conversas)
+    window.addEventListener('hashchange', () => {
+        if (location.hash === '#conversas') {
+            mostrarSecao('conversas');
+        }
+    });
+
+    if (location.hash === '#conversas') mostrarSecao('conversas');
+}
+
+async function carregarConversasChat() {
+    const convList = document.getElementById('chat-conversas-list');
+    if (!convList) return;
+
+    try {
+        // Observação: o backend registra como /chat/conversas (sem prefixo /api no blueprint)
+        const baseUrl = API_BASE.replace('/api','');
+            const resp = await fetch(`${baseUrl}/chat/conversas`, {
+            headers: apiHeaders(true)
+        });
+
+        // fallback: se retornar vazio/não vier conversas, ainda vamos preencher com usuários.
+        // (não remove a lista de mensagens; apenas evita ficar “sem conversa” no admin)
+        if (resp.ok) {
+            const peek = await resp.clone().json().catch(() => null);
+            if (peek && !peek.conversas) {
+                throw new Error('Resposta do chat sem campo conversas');
+            }
+        }
+
+        if (!resp.ok) {
+            const txt = await resp.text().catch(() => '');
+            console.error('Erro ao carregar conversas:', resp.status, txt);
+            throw new Error(`HTTP ${resp.status}`);
+        }
+
+        if (!resp.ok) {
+            const txt = await resp.text().catch(() => '');
+            console.error('Erro ao carregar conversas:', resp.status, txt);
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: `Não foi possível carregar conversas. (${resp.status})`, tipo: 'erro' });
+            return;
+        }
+
+        const data = await resp.json();
+        chatConversas = data.conversas || [];
+        
+        // DEBUG: Log da estrutura de dados do backend
+        if (chatConversas.length > 0) {
+            console.log('✓ Conversas carregadas do backend:', chatConversas[0]);
+            console.log('  Chaves disponíveis:', Object.keys(chatConversas[0]));
+        }
+        
+        exibirConversasChat(chatConversas);
+
+        // Se não houver conversas, carregar lista de clientes como fallback
+        if (chatConversas.length === 0) {
+            console.warn('⚠ Nenhuma conversa encontrada. Carregando lista de clientes como fallback...');
+            try {
+                const respClientes = await fetch(`${API_BASE}/admin/clientes`, {
+                    headers: apiHeaders(true)
+                });
+                if (respClientes.ok) {
+                    const dataClientes = await respClientes.json();
+                    const clientes = dataClientes.clientes || [];
+                    
+                    if (clientes.length > 0) {
+                        console.log('✓ Clientes carregados:', clientes[0]);
+                        console.log('  Chaves disponíveis:', Object.keys(clientes[0]));
+                    }
+                    
+                    // Criar conversas virtuais a partir dos clientes
+                    chatConversas = clientes.map((cliente, idx) => {
+                        // IMPORTANTE: Tentar múltiplas chaves possíveis para o ID
+                        const idCliente = cliente.id || cliente.usuario_id || cliente.chamado_id || null;
+                        
+                        if (!idCliente) {
+                            console.error('⚠ Cliente sem ID válido:', cliente);
+                        }
+                        
+                        return {
+                            chamado_id: idCliente,
+                            usuario_id: idCliente,
+                            usuario_nome: cliente.nome || cliente.usuario_nome || '—',
+                            usuario_email: cliente.email || cliente.usuario_email || '—',
+                            ultima_mensagem: '(Nenhuma mensagem)',
+                            ultima_mensagem_data: null,
+                            qtd_mensagens: 0,
+                            status_conversa: 'novo',
+                            prioridade: 'normal'
+                        };
+                    });
+                    
+                    console.log(`✓ ${chatConversas.length} clientes mapeados como conversas virtuais.`);
+                    if (chatConversas.length > 0) {
+                        console.log('  Primeiro mapeado:', chatConversas[0]);
+                    }
+                    
+                    console.log(`${chatConversas.length} clientes carregados como conversas virtuais.`);
+                    exibirConversasChat(chatConversas);
+                }
+            } catch (err) {
+                console.error('Erro ao carregar clientes como fallback:', err);
+                exibirConversasChat([]);
+            }
+        }
+
+        // Pré-seleção automática APÓS HTML estar renderizado
+        // IMPORTANTE: Usar setTimeout para garantir que DOM está pronto
+        if ((!usuarioSelecionadoId || usuarioSelecionadoId === null) && chatConversas.length > 0) {
+            setTimeout(async () => {
+                // Validar que tem dados seguros
+                const primeiroCliente = chatConversas[0];
+                const idPrimeiro = primeiroCliente.chamado_id || primeiroCliente.usuario_id || primeiroCliente.id;
+                
+                if (!idPrimeiro || idPrimeiro === null || String(idPrimeiro).trim() === '') {
+                    console.error('❌ Não foi possível fazer pré-seleção: ID do primeiro cliente é inválido');
+                    console.error('   Objeto:', primeiroCliente);
+                    return;
+                }
+                
+                console.log(`✓ Pré-seleção: ${primeiroCliente.usuario_nome} (ID: ${idPrimeiro})`);
+                await selecionarConversa(idPrimeiro);
+            }, 100); // Delay pequeno para garantir renderização
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function exibirConversasChat(conversas) {
+    const convList = document.getElementById('chat-conversas-list');
+    if (!convList) return;
+
+    convList.innerHTML = '';
+    if (!conversas || conversas.length === 0) {
+        convList.innerHTML = '<div class="sem-dados">Nenhuma conversa ainda.</div>';
+        return;
+    }
+
+    conversas.forEach((c, idx) => {
+        // DEBUG: Validar estrutura de cada conversa
+        if (!c.chamado_id && !c.usuario_id && !c.id) {
+            console.error(`⚠ Conversa ${idx} sem ID identificável:`, c);
+            return; // Pular conversa sem ID
+        }
+        
+        // IMPORTANTE: Tentar múltiplas propriedades possíveis para o ID
+        const idConversa = c.chamado_id || c.usuario_id || c.id;
+        
+        console.log(`[${idx}] Renderizando conversa:`, {
+            id: idConversa,
+            nome: c.usuario_nome || c.nome,
+            objeto: c
+        });
+        
+        const item = document.createElement('div');
+        item.className = 'chat-conversa-item';
+        
+        // Injetar ID SEGURO no atributo data-id
+        item.setAttribute('data-id', String(idConversa));
+        item.setAttribute('data-debug-id', String(idConversa));
+        
+        // Marca como ativo se o usuarioSelecionadoId corresponder
+        if (String(idConversa) === String(usuarioSelecionadoId)) {
+            item.classList.add('ativo');
+        }
+
+        const ultima = c.ultima_mensagem ? c.ultima_mensagem : '—';
+        const ultimaData = c.ultima_mensagem_data ? new Date(c.ultima_mensagem_data).toLocaleString('pt-BR') : '';
+
+        item.innerHTML = `
+            <div class="chat-conversa-main">
+                <div class="chat-conversa-nome">${escapeHtml(c.usuario_nome || '—')}</div>
+                <div class="chat-conversa-ultima">${escapeHtml(ultima).slice(0, 120)}</div>
+            </div>
+            <div class="chat-conversa-meta">
+                <div class="chat-conversa-data">${escapeHtml(ultimaData)}</div>
+                <div class="chat-conversa-count">${c.qtd_mensagens || 0}</div>
+            </div>
+        `;
+
+        // Evento de clique para selecionar conversa
+        item.addEventListener('click', async () => {
+            // Capturar ID do atributo data-id
+            const idSelecionado = item.getAttribute('data-id');
+            
+            // TRAVA 1: Validar ID antes de qualquer ação
+            if (!idSelecionado || idSelecionado === 'null' || idSelecionado === 'undefined' || String(idSelecionado).trim() === '') {
+                console.error('❌ BLOQUEADO: Tentativa de selecionar com ID inválido:', idSelecionado);
+                mostrarModalMensagem({
+                    titulo: 'Erro de Dados',
+                    mensagem: 'Não foi possível identificar o cliente. Recarregue a página.',
+                    tipo: 'erro'
+                });
+                return;
+            }
+            
+            console.log(`✓ Clique válido: ID ${idSelecionado} (${c.usuario_nome})`);
+            
+            // IMPORTANTE: Remover classe 'ativo' de TODOS os itens primeiro
+            document.querySelectorAll('.chat-conversa-item').forEach(el => {
+                el.classList.remove('ativo');
+            });
+            
+            // Adicionar classe 'ativo' apenas ao item clicado
+            item.classList.add('ativo');
+            
+            // Definir variável global
+            usuarioSelecionadoId = idSelecionado;
+            
+            // Carregar conversa e mensagens
+            await selecionarConversa(idSelecionado);
+        });
+
+        convList.appendChild(item);
+    });
+}
+
+async function selecionarConversa(chamadoId) {
+    // Permite seleção mesmo quando a conversa do banco está com chamado_id=null.
+    // Nesse caso, o usuário precisa conseguir abrir o chat iniciando um chamado ao enviar a 1ª mensagem.
+
+    // TRAVA RIGOROSA 1: chamadoId precisa existir como ID do cliente/conversa (pelo menos usuario_id/id).
+    if (chamadoId === null || chamadoId === undefined) {
+        // Não bloqueia; apenas aborta o nome/seleção quando não existe ID de forma alguma.
+        console.error('❌ BLOQUEADO: chamadoId é null/undefined');
+        return;
+    }
+
+    // TRAVA RIGOROSA 2: Converter para string e validar
+    const idStr = String(chamadoId).trim();
+    if (idStr === '' || idStr === 'NaN' || idStr === 'undefined') {
+        console.error(`❌ BLOQUEADO: ID inválido após conversão: "${idStr}"`);
+        return;
+    }
+
+
+    // TRAVA RIGOROSA 3: Validar que é um número ou ID válido
+    const idNum = parseInt(idStr, 10);
+    if (isNaN(idNum) && !/^[a-zA-Z0-9_-]+$/.test(idStr)) {
+        console.error(`❌ BLOQUEADO: ID não é número nem UUID válido: "${idStr}"`);
+        return;
+    }
+
+    // Só aqui é seguro prosseguir
+    usuarioSelecionadoId = idStr;
+    console.log(`✓ Conversa selecionada: ID ${idStr}`);
+
+    const titulo = document.getElementById('chat-conversa-title');
+    const subtitle = document.getElementById('chat-conversa-subtitle');
+
+    // IMPORTANTE: atualizar cabeçalho IMEDIATAMENTE com o nome clicado.
+    // Pode acontecer de a conversa não ter histórico (404) e mesmo assim precisamos exibir o nome.
+    const conv = chatConversas.find(x => String(x.chamado_id || x.usuario_id || x.id) === String(chamadoId));
+    const nomeCliente = conv?.usuario_nome || '—';
+
+    if (titulo) titulo.textContent = nomeCliente;
+    if (subtitle) subtitle.textContent = `${conv?.status_conversa || '—'} • ${conv?.prioridade || '—'}`;
+
+    exibirConversasChat(chatConversas);
+    await carregarMensagensChat(chamadoId);
+}
+
+async function carregarMensagensChat(chamadoId) {
+    const container = document.getElementById('chat-mensagens');
+    if (!container) return;
+
+    // Se não houver chamado_id ainda, não chamamos o backend de mensagens.
+    // O chat continua selecionável; a primeira mensagem deve abrir/criar o chamado.
+    if (chamadoId === null || chamadoId === undefined) {
+        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para abrir um chamado/iniciar o chat com este usuário.</div>";
+        return;
+    }
+
+    const idStr = String(chamadoId).trim();
+    if (idStr === '' || idStr === 'null' || idStr === 'undefined' || idStr === 'NaN') {
+        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para abrir um chamado/iniciar o chat com este usuário.</div>";
+        return;
+    }
+
+
+    console.log(`→ Carregando mensagens para ID: ${idStr}`);
+
+    try {
+        // ADMIN: mensagens do suporte ficam em /api/admin/suporte/mensagens (chat.py / blueprint de admin)
+        // Obs: como o endpoint admin pode ou não requerer parâmetros, montamos por querystring.
+        const url = `${API_BASE}/admin/suporte/mensagens?chamado_id=${encodeURIComponent(idStr)}`;
+        console.log(`→ Requisição: GET ${url}`);
+
+        const resp = await fetch(url, {
+            headers: apiHeaders(true)
+        });
+
+
+
+        // Tratamento de 404 (conversa inexistente / seed com chamado_id=null)
+        if (!resp.ok) {
+            let payload = null;
+            try {
+                payload = await resp.json();
+            } catch {
+                // fallback: tenta ler texto
+                try { payload = { error: await resp.text().catch(() => '') }; } catch {}
+            }
+
+            const errorMsg = payload?.error || '';
+
+            // Se for conversa não encontrada, mostramos UI limpa
+            if (resp.status === 404 || String(errorMsg).toLowerCase().includes('conversa não encontrada')) {
+                container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para iniciar a conversa!</div>";
+                return;
+            }
+
+            console.error(`❌ Erro ao carregar mensagens: HTTP ${resp.status}`, payload);
+            container.innerHTML = '<div class="sem-dados">Falha ao carregar mensagens. (Verifique console)</div>';
+            return;
+        }
+
+        const data = await resp.json();
+        const mensagens = data.mensagens || [];
+        console.log(`✓ ${mensagens.length} mensagens carregadas`);
+
+        renderMensagensChat(mensagens);
+    } catch (err) {
+        // Mantém UI limpa em falhas esperadas do chat
+        console.error('❌ Erro ao carregar mensagens:', err);
+        container.innerHTML = '<div class="sem-dados">Erro ao carregar mensagens.</div>';
+    }
+}
+
+function renderMensagensChat(mensagens) {
+    const container = document.getElementById('chat-mensagens');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!mensagens || mensagens.length === 0) {
+        container.innerHTML = '<div class="sem-dados">Nenhuma mensagem nesta conversa.</div>';
+        return;
+    }
+
+    const token = getToken();
+
+    const me = null; // sem necessidade
+
+    mensagens.forEach(m => {
+        const isAdminMsg = m.autor_tipo === 'admin';
+        const div = document.createElement('div');
+        div.className = `chat-msg ${isAdminMsg ? 'admin' : 'user'}`;
+
+        const dataStr = m.data ? new Date(m.data).toLocaleString('pt-BR') : '';
+
+        div.innerHTML = `
+            <div class="chat-bubble">
+                <div class="chat-text">${escapeHtml(m.conteudo || '')}</div>
+                <div class="chat-time">${escapeHtml(dataStr)}</div>
+            </div>
+        `;
+
+        container.appendChild(div);
+    });
+
+    container.scrollTop = container.scrollHeight;
+}
+
+function iniciarPollingChat() {
+    if (chatPollingTimer) clearInterval(chatPollingTimer);
+    chatPollingTimer = setInterval(async () => {
+        // atualiza lista e, se houver usuário selecionado, atualiza mensagens
+        if (!document.getElementById('conversas') || document.getElementById('conversas').style.display === 'none') return;
+
+        await carregarConversasChat();
+        // Verifica variável global usuarioSelecionadoId para polling.
+        // IMPORTANTE: se a conversa selecionada ainda não existe no banco, o backend retorna chamado_id=null.
+        // Nesse caso, não chamamos o endpoint de mensagens.
+        if (usuarioSelecionadoId !== null && usuarioSelecionadoId !== undefined && String(usuarioSelecionadoId).trim() !== '' && String(usuarioSelecionadoId) !== 'null' && String(usuarioSelecionadoId) !== 'undefined') {
+            await carregarMensagensChat(usuarioSelecionadoId);
+        }
+    }, 4000);
+}
+

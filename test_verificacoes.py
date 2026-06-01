@@ -70,7 +70,7 @@ class VerificadorAPI:
             dados = {
                 "email": "teste@example.com",
                 "nome": "Usuário Teste",
-                "senha": "senha123",
+                "senha": "admin123",
                 "telefone": "11999999999"
             }
             response = requests.post(f"{self.base_url}/api/auth/cadastro", json=dados, timeout=10)
@@ -104,7 +104,7 @@ class VerificadorAPI:
         try:
             dados = {
                 "email": "teste@example.com",
-                "senha": "senha123"
+                "senha": "admin123"
             }
             response = requests.post(f"{self.base_url}/api/auth/login", json=dados, timeout=10)
             if response.status_code == 200:

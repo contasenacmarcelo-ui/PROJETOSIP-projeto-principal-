@@ -180,6 +180,26 @@ class MensagemContato(db.Model):
             'lida': self.lida
         }
 
+class MensagemSuporte(db.Model):
+    __tablename__ = 'mensagens_suporte'
+    id = db.Column(db.Integer, primary_key=True)
+    chamado_id = db.Column(db.Integer, db.ForeignKey('chamados_suporte.id'), nullable=False, index=True)
+    autor_tipo = db.Column(db.String(20), nullable=False)  # user, admin
+    autor_usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False, index=True)
+    conteudo = db.Column(db.Text, nullable=False)
+    data = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'chamado_id': self.chamado_id,
+            'autor_tipo': self.autor_tipo,
+            'autor_usuario_id': self.autor_usuario_id,
+            'conteudo': self.conteudo,
+            'data': self.data.isoformat() if self.data else None,
+        }
+
+
 class Notificacao(db.Model):
     __tablename__ = 'notificacoes'
     id = db.Column(db.Integer, primary_key=True)

@@ -120,11 +120,13 @@ function renderPreview(dados) {
 }
 
 async function processar(dados) {
-  const processResponse = await fetch('http://localhost:5000/api/ml-executivo/processar', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(dados)
-  });
+  const processResponse = await fetch('/api/ml-executivo/processar',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados)
+    }
+  );
 
   if (!processResponse.ok) {
     const text = await processResponse.text().catch(() => '');

@@ -100,7 +100,7 @@ botao.addEventListener("click", function (event) {
             senha: senhaInput.value
         };
 
-        fetch('http://localhost:5000/api/auth/login', {
+fetch(`${window.location.origin}/api/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

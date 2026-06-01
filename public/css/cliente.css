@@ -714,12 +714,13 @@ hr {
     display: none;
     position: fixed;
     z-index: 2000;
-    left: 0;
-    top: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
-    animation: fadeIn 0.3s ease;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: fadeIn 0.22s ease;
 }
 
 .modal-cliente.ativo {
@@ -729,21 +730,171 @@ hr {
 }
 
 .modal-cliente-content {
-    background: #0b1e33;
-    padding: 40px;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-    max-width: 500px;
+    background: linear-gradient(180deg, rgba(11, 30, 51, 0.98) 0%, rgba(7, 20, 36, 0.98) 100%);
+    padding: 28px;
+    border-radius: 18px;
+    box-shadow: 0 18px 70px rgba(0, 0, 0, 0.55);
+    max-width: 560px;
     width: 90%;
     position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    animation: slideUp 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    animation: slideUp 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
     font-family: "Sora", sans-serif;
     color: white;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
+
+/* Chat moderno: mantém estrutura, só estilo */
+#modalChat .modal-cliente-content.modal-chat {
+    max-width: 780px;
+    width: min(94vw, 780px);
+    padding: 18px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 156, 134, 0.25);
+    background: linear-gradient(180deg, rgba(11, 30, 51, 0.98) 0%, rgba(2, 17, 36, 0.98) 100%);
+}
+
+#modalChat #chatMensagens {
+    flex: 1;
+    min-height: 280px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 14px;
+    margin: 10px 10px 0 10px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+}
+
+#modalChat #chatMensagens::-webkit-scrollbar {
+    width: 10px;
+}
+
+#modalChat #chatMensagens::-webkit-scrollbar-thumb {
+    background: rgba(0, 156, 134, 0.45);
+    border-radius: 999px;
+    border: 2px solid rgba(0, 0, 0, 0.25);
+}
+
+#modalChat .chat-mensagens .loading {
+    color: rgba(255, 255, 255, 0.65);
+    text-align: center;
+    padding: 24px 0;
+}
+
+/* Bubbles */
+#modalChat .mensagem-chat {
+    display: flex;
+}
+
+#modalChat .mensagem-chat.admin,
+#modalChat .mensagem-chat.user {
+    justify-content: flex-start;
+}
+
+#modalChat .mensagem-chat.admin {
+    justify-content: flex-end;
+}
+
+#modalChat .msg-bubble {
+    max-width: 78%;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+#modalChat .mensagem-chat.admin .msg-bubble {
+    background: rgba(0, 156, 134, 0.16);
+    border-color: rgba(0, 156, 134, 0.35);
+}
+
+#modalChat .msg-bubble p {
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 14px;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+}
+
+#modalChat .msg-data {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+}
+
+/* Input e botão modernos */
+#modalChat .form-enviar-msg {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: center;
+    margin: 12px 10px 10px 10px;
+    padding-top: 8px;
+}
+
+#modalChat .form-enviar-msg textarea {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    color: white;
+    padding: 12px 14px;
+    min-height: 44px;
+    resize: none;
+    outline: none;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+#modalChat .form-enviar-msg textarea:focus {
+    border-color: rgba(0, 156, 134, 0.7);
+    box-shadow: 0 0 0 4px rgba(0, 156, 134, 0.18);
+}
+
+#modalChat .form-enviar-msg .btn-cliente-enviar {
+    padding: 12px 18px;
+    border-radius: 12px;
+    min-width: 120px;
+    background: linear-gradient(135deg, rgba(0, 156, 134, 1) 0%, rgba(5, 164, 134, 1) 100%);
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 156, 134, 0.22);
+    font-size: 15px;
+}
+
+#modalChat .form-enviar-msg .btn-cliente-enviar:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 40px rgba(0, 156, 134, 0.28);
+}
+
+@media (max-width: 600px) {
+    #modalChat .modal-cliente-content.modal-chat {
+        padding: 14px;
+        border-radius: 16px;
+    }
+
+    #modalChat #chatMensagens {
+        margin: 10px 0 0 0;
+        border-radius: 12px;
+    }
+
+    #modalChat .form-enviar-msg {
+        grid-template-columns: 1fr;
+        margin: 12px 0 10px 0;
+    }
+
+    #modalChat .form-enviar-msg .btn-cliente-enviar {
+        width: 100%;
+        min-width: unset;
+    }
+}
+
 
 .modal-cliente-content h2 {
     color: white;
