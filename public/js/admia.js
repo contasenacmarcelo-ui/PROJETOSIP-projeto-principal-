@@ -226,7 +226,9 @@ async function carregarClientes() {
 
         if (response.ok) {
             const data = await response.json();
-            exibirClientes(data.clientes);
+            // Compatibilidade: endpoint pode retornar { clientes: [...] } ou array direto.
+            const clientes = Array.isArray(data) ? data : (data?.clientes || []);
+            exibirClientes(clientes);
         }
     } catch (error) {
         console.error('Erro ao carregar clientes:', error);
