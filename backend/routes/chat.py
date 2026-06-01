@@ -20,6 +20,7 @@ def _to_int(value, default=None):
 def listar_conversas():
     """Admin: retorna todas as conversas (usuários que têm chamados/mensagens).
 
+
     Usuário: retorna somente suas conversas.
     """
 

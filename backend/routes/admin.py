@@ -5,6 +5,15 @@ from ..utils import require_admin
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
+# Utilitário para evitar que erros de formatação quebrem o endpoint
+
+def safe_iso(dt):
+    try:
+        return dt.isoformat() if dt else None
+    except Exception:
+        return None
+
+
 admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.route('/admin/dashboard', methods=['GET'])
@@ -44,21 +53,21 @@ def get_clientes():
     """Retorna lista de todos os clientes com seus dados"""
     try:
         usuarios = Usuario.query.filter_by(role='user').all()
-        
+
         clientes = []
         for usuario in usuarios:
             pedidos = Pedido.query.filter_by(usuario_id=usuario.id).all()
             chamados = ChamadoSuporte.query.filter_by(usuario_id=usuario.id).all()
             orcamentos = Orcamento.query.filter_by(usuario_id=usuario.id).all()
-            
+
             valor_total = sum(p.valor_estimado or 0 for p in pedidos)
-            
+
             clientes.append({
                 "id": usuario.id,
                 "nome": usuario.nome,
                 "email": usuario.email,
                 "telefone": usuario.telefone,
-                "data_cadastro": usuario.data_cadastro.isoformat(),
+                "data_cadastro": usuario.data_cadastro.isoformat() if usuario.data_cadastro else None,
                 "data_ultimo_login": usuario.data_ultimo_login.isoformat() if usuario.data_ultimo_login else None,
                 "email_verificado": usuario.email_verificado,
                 "status": usuario.status,
@@ -71,13 +80,17 @@ def get_clientes():
                 "chamados": [c.to_dict() for c in chamados],
                 "orcamentos": [o.to_dict() for o in orcamentos]
             })
-        
+
         return jsonify({
             "total": len(clientes),
             "clientes": clientes
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        print(f"ERRO CRÍTICO NA ROTA {request.path}: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
+
 
 @admin_bp.route('/admin/cliente/<int:cliente_id>', methods=['GET'])
 @jwt_required()
@@ -301,13 +314,17 @@ def get_mensagens_suporte():
                 "categoria_classificada": chamado.categoria_classificada,
                 "prioridade": chamado.prioridade,
                 "status": chamado.status,
-                "data": chamado.data.isoformat() if chamado.data else None
+                "data": safe_iso(chamado.data)
             }
 
         mensagens = list(mensagens_por_usuario.values())
         return jsonify({"total": len(mensagens), "mensagens": mensagens}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        print(f"ERRO CRÍTICO NA ROTA {request.path}: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
+
 
 @admin_bp.route('/admin/suporte/<int:chamado_id>/responder', methods=['POST'])
 @jwt_required()
@@ -352,7 +369,7 @@ def get_pedidos():
     try:
         pedidos = Pedido.query.all()
         pedidos_data = []
-        
+
         for pedido in pedidos:
             usuario = Usuario.query.get(pedido.usuario_id)
             pedidos_data.append({
@@ -366,10 +383,14 @@ def get_pedidos():
                 "valor_estimado": float(pedido.valor_estimado) if pedido.valor_estimado else None,
                 "data_criacao": pedido.data_criacao.isoformat() if pedido.data_criacao else None
             })
-        
+
         return jsonify({"pedidos": pedidos_data}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        print(f"ERRO CRÍTICO NA ROTA {request.path}: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
+
 
 @admin_bp.route('/admin/pedido/<int:pedido_id>', methods=['GET'])
 @jwt_required()
