@@ -562,8 +562,13 @@ function exibirMensagensSuporte(mensagens) {
         const btnApagar = document.createElement('button');
         btnApagar.className = 'btn-apagar';
         btnApagar.type = 'button';
-        btnApagar.setAttribute('onclick', `apagarChamadoSuporte(${msg.id})`);
-        btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
+        const chamadoId = (msg && (msg.chamado_id ?? msg.id)) != null ? (msg.chamado_id ?? msg.id) : null;
+        if (chamadoId === null) {
+            // Não renderiza botão caso não tenha ID para deletar
+        } else {
+            btnApagar.setAttribute('onclick', `apagarChamadoSuporte(${chamadoId})`);
+            btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
+        }
 
         acoes.appendChild(btnResp);
         acoes.appendChild(btnRes);
@@ -788,39 +793,98 @@ function exibirPedidos(pedidos) {
     pedidos.forEach(pedido => {
         const card = document.createElement('div');
         card.className = 'pedido-card';
-        const dataCriacao = new Date(pedido.data_criacao).toLocaleDateString('pt-BR');
-        const statusClass = pedido.status.toLowerCase().replace(' ', '-');
 
-        card.innerHTML = `
-            <div class="pedido-header">
-                <h3>Pedido #${pedido.id}</h3>
-                <span class="status ${statusClass}">${pedido.status}</span>
-            </div>
-            <div class="pedido-info">
-                <p><strong>Cliente:</strong> ${pedido.usuario_nome} (${pedido.usuario_email})</p>
-                <p><strong>Serviço:</strong> ${pedido.servico}</p>
-                <p><strong>Descrição:</strong> ${pedido.descricao}</p>
-                <p><strong>Orçamento Estimado:</strong> R$ ${pedido.valor_estimado ? pedido.valor_estimado.toFixed(2) : 'N/A'}</p>
-                <p><strong>Data:</strong> ${dataCriacao}</p>
-            </div>
-            <div class="pedido-acoes">
-                <button onclick="verDetalhesPedido(${pedido.id})" class="btn-detalhes">
-                    <i class="bi bi-eye"></i> Ver Detalhes
-                </button>
-                <button onclick="atualizarStatusPedido(${pedido.id}, 'em_andamento')" class="btn-status">
-                    <i class="bi bi-play"></i> Iniciar
-                </button>
-                <button onclick="atualizarStatusPedido(${pedido.id}, 'concluido')" class="btn-status">
-                    <i class="bi bi-check-circle"></i> Concluir
-                </button>
-                <button onclick="apagarPedido(${pedido.id})" class="btn-apagar">
-                    <i class="bi bi-trash"></i> Apagar
-                </button>
-            </div>
-        `;
+        const dataCriacao = pedido.data_criacao ? new Date(pedido.data_criacao).toLocaleDateString('pt-BR') : '—';
+        const statusClass = (pedido.status || '').toLowerCase().replace(' ', '-');
+
+        // header
+        const header = document.createElement('div');
+        header.className = 'pedido-header';
+
+        const h3 = document.createElement('h3');
+        h3.textContent = `Pedido #${pedido.id}`;
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = `status ${statusClass}`.trim();
+        statusSpan.textContent = pedido.status ?? '—';
+
+        header.appendChild(h3);
+        header.appendChild(statusSpan);
+
+        // info
+        const info = document.createElement('div');
+        info.className = 'pedido-info';
+
+        const pCliente = document.createElement('p');
+        pCliente.innerHTML = '<strong>Cliente:</strong> ';
+        pCliente.appendChild(document.createTextNode(`${pedido.usuario_nome ?? '—'} (${pedido.usuario_email ?? ''})`.trim() || '—'));
+
+        const pServico = document.createElement('p');
+        pServico.innerHTML = '<strong>Serviço:</strong> ';
+        pServico.appendChild(document.createTextNode(pedido.servico ?? '—'));
+
+        const pDescricao = document.createElement('p');
+        pDescricao.innerHTML = '<strong>Descrição:</strong> ';
+        pDescricao.appendChild(document.createTextNode(pedido.descricao ?? '—'));
+
+        const pValor = document.createElement('p');
+        pValor.innerHTML = '<strong>Orçamento Estimado:</strong> ';
+        const valorTxt = pedido.valor_estimado != null && pedido.valor_estimado !== ''
+            ? `R$ ${Number(pedido.valor_estimado).toFixed(2)}`
+            : 'R$ N/A';
+        pValor.appendChild(document.createTextNode(valorTxt));
+
+        const pData = document.createElement('p');
+        pData.innerHTML = '<strong>Data:</strong> ';
+        pData.appendChild(document.createTextNode(dataCriacao));
+
+        info.appendChild(pCliente);
+        info.appendChild(pServico);
+        info.appendChild(pDescricao);
+        info.appendChild(pValor);
+        info.appendChild(pData);
+
+        // actions
+        const acoes = document.createElement('div');
+        acoes.className = 'pedido-acoes';
+
+        const btnDetalhes = document.createElement('button');
+        btnDetalhes.className = 'btn-detalhes';
+        btnDetalhes.type = 'button';
+        btnDetalhes.setAttribute('onclick', `verDetalhesPedido(${pedido.id})`);
+        btnDetalhes.innerHTML = '<i class="bi bi-eye"></i> Ver Detalhes';
+
+        const btnIniciar = document.createElement('button');
+        btnIniciar.className = 'btn-status';
+        btnIniciar.type = 'button';
+        btnIniciar.setAttribute('onclick', `atualizarStatusPedido(${pedido.id}, 'em_andamento')`);
+        btnIniciar.innerHTML = '<i class="bi bi-play"></i> Iniciar';
+
+        const btnConcluir = document.createElement('button');
+        btnConcluir.className = 'btn-status';
+        btnConcluir.type = 'button';
+        btnConcluir.setAttribute('onclick', `atualizarStatusPedido(${pedido.id}, 'concluido')`);
+        btnConcluir.innerHTML = '<i class="bi bi-check-circle"></i> Concluir';
+
+        const btnApagar = document.createElement('button');
+        btnApagar.className = 'btn-apagar';
+        btnApagar.type = 'button';
+        btnApagar.setAttribute('onclick', `apagarPedido(${pedido.id})`);
+        btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
+
+        acoes.appendChild(btnDetalhes);
+        acoes.appendChild(btnIniciar);
+        acoes.appendChild(btnConcluir);
+        acoes.appendChild(btnApagar);
+
+        card.appendChild(header);
+        card.appendChild(info);
+        card.appendChild(acoes);
+
         container.appendChild(card);
     });
 }
+
 
 async function apagarPedido(pedidoId) {
     if (!confirm('Tem certeza que deseja apagar este pedido? Esta ação não pode ser desfeita.')) return;
