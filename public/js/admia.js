@@ -242,56 +242,83 @@ function exibirClientes(clientes) {
 
     tbody.innerHTML = '';
 
+    const safeClientes = Array.isArray(clientes) ? clientes : [];
 
-    if (clientes.length === 0) {
+    if (safeClientes.length === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="8" style="text-align:center;padding:20px;">Nenhum cliente encontrado</td>';
+        tr.innerHTML = '<td colspan="10" style="text-align:center;padding:20px;">Nenhum cliente encontrado</td>';
         tbody.appendChild(tr);
         return;
     }
 
-    clientes.forEach(cliente => {
-        const row = document.createElement('tr');
-        const ultimoLogin = cliente.data_ultimo_login ? new Date(cliente.data_ultimo_login).toLocaleDateString('pt-BR') : 'Nunca';
-        const emailVerificado = cliente.email_verificado ? 'Sim' : 'Não';
-        // Segurança: evita XSS removendo innerHTML com dados vindos do backend.
-        row.innerHTML = '';
-        const addCell = (text) => {
-            const td = document.createElement('td');
-            td.textContent = text ?? '—';
-            row.appendChild(td);
-        };
+    // Loop resiliente: um cliente quebrado não impede renderização dos demais.
+    safeClientes.forEach((cliente) => {
+        try {
+            const row = document.createElement('tr');
+            row.innerHTML = '';
 
-        addCell(cliente.id);
-        addCell(cliente.nome);
-        addCell(cliente.email);
-        addCell(cliente.status);
-        addCell(cliente.num_pedidos);
-        addCell(cliente.num_chamados);
-        addCell(cliente.total_gasto != null ? `R$ ${cliente.total_gasto.toFixed(2)}` : 'R$ 0,00');
-        addCell(ultimoLogin);
-        addCell(emailVerificado);
+            const id = cliente?.id ?? '—';
+            const nome = cliente?.nome ?? 'Sem Nome';
+            const email = cliente?.email ?? '--';
+            const status = cliente?.status ?? 'inativo';
+            const numPedidos = cliente?.num_pedidos ?? 0;
+            const numChamados = cliente?.num_chamados ?? 0;
 
-        const tdBtn = document.createElement('td');
+            const totalGasto = (cliente?.total_gasto != null && cliente?.total_gasto !== '')
+                ? Number(cliente.total_gasto)
+                : 0;
 
-        const btnDetalhes = document.createElement('button');
-        btnDetalhes.className = 'btn-detalhes';
-        btnDetalhes.title = 'Ver Detalhes';
-        btnDetalhes.type = 'button';
-        btnDetalhes.setAttribute('onclick', `verDetalhes(${cliente.id})`);
-        btnDetalhes.innerHTML = `<i class="bi bi-eye-fill"></i> Ver`;
-        tdBtn.appendChild(btnDetalhes);
+            const ultimoLogin = cliente?.data_ultimo_login
+                ? (() => {
+                    const d = new Date(cliente.data_ultimo_login);
+                    return isNaN(d.getTime()) ? 'Nunca' : d.toLocaleDateString('pt-BR');
+                })()
+                : 'Nunca';
 
-        const btnApagar = document.createElement('button');
-        btnApagar.className = 'btn-apagar';
-        btnApagar.title = 'Apagar usuário';
-        btnApagar.type = 'button';
-        btnApagar.setAttribute('onclick', `apagarCliente(${cliente.id})`);
-        btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
-        tdBtn.appendChild(btnApagar);
+            // fallback: email_verificado pode vir boolean ou texto
+            const emailVerificado = cliente?.email_verificado === true || cliente?.email_verificado === 'true' || cliente?.email_verificado === 1 || cliente?.email_verificado === '1'
+                ? 'Sim'
+                : 'Não';
 
-        row.appendChild(tdBtn);
-        tbody.appendChild(row);
+            const addCell = (text) => {
+                const td = document.createElement('td');
+                td.textContent = text ?? '—';
+                row.appendChild(td);
+            };
+
+            addCell(id);
+            addCell(nome);
+            addCell(email);
+            addCell(status);
+            addCell(numPedidos);
+            addCell(numChamados);
+            addCell(`R$ ${(isFinite(totalGasto) ? totalGasto : 0).toFixed(2).replace('.', ',')}`);
+            addCell(ultimoLogin);
+            addCell(emailVerificado);
+
+            const tdBtn = document.createElement('td');
+
+            const btnDetalhes = document.createElement('button');
+            btnDetalhes.className = 'btn-detalhes';
+            btnDetalhes.title = 'Ver Detalhes';
+            btnDetalhes.type = 'button';
+            btnDetalhes.setAttribute('onclick', `verDetalhes(${id})`);
+            btnDetalhes.innerHTML = `<i class="bi bi-eye-fill"></i> Ver`;
+            tdBtn.appendChild(btnDetalhes);
+
+            const btnApagar = document.createElement('button');
+            btnApagar.className = 'btn-apagar';
+            btnApagar.title = 'Apagar usuário';
+            btnApagar.type = 'button';
+            btnApagar.setAttribute('onclick', `apagarCliente(${id})`);
+            btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
+            tdBtn.appendChild(btnApagar);
+
+            row.appendChild(tdBtn);
+            tbody.appendChild(row);
+        } catch (err) {
+            console.error('Erro ao renderizar cliente (mantendo os demais):', err, cliente);
+        }
     });
 }
 
@@ -786,104 +813,118 @@ function exibirPedidos(pedidos) {
 
     container.innerHTML = '';
 
+    const safePedidos = Array.isArray(pedidos) ? pedidos : [];
 
-    if (pedidos.length === 0) {
+    if (safePedidos.length === 0) {
         container.innerHTML = '<p class="sem-dados">Nenhum pedido encontrado.</p>';
         return;
     }
 
-    pedidos.forEach(pedido => {
-        const card = document.createElement('div');
-        card.className = 'pedido-card';
+    safePedidos.forEach((pedido) => {
+        try {
+            const card = document.createElement('div');
+            card.className = 'pedido-card';
 
-        const dataCriacao = pedido.data_criacao ? new Date(pedido.data_criacao).toLocaleDateString('pt-BR') : '—';
-        const statusClass = (pedido.status || '').toLowerCase().replace(' ', '-');
+            const dataCriacao = pedido?.data_criacao ? new Date(pedido.data_criacao).toLocaleDateString('pt-BR') : '—';
+            const statusClass = (pedido?.status || '').toLowerCase().replace(' ', '-');
 
-        // header
-        const header = document.createElement('div');
-        header.className = 'pedido-header';
+            // header
+            const header = document.createElement('div');
+            header.className = 'pedido-header';
 
-        const h3 = document.createElement('h3');
-        h3.textContent = `Pedido #${pedido.id}`;
+            const h3 = document.createElement('h3');
+            h3.textContent = `Pedido #${pedido?.id ?? '—'}`;
 
-        const statusSpan = document.createElement('span');
-        statusSpan.className = `status ${statusClass}`.trim();
-        statusSpan.textContent = pedido.status ?? '—';
+            const statusSpan = document.createElement('span');
+            statusSpan.className = `status ${statusClass}`.trim();
+            statusSpan.textContent = pedido?.status ?? '—';
 
-        header.appendChild(h3);
-        header.appendChild(statusSpan);
+            header.appendChild(h3);
+            header.appendChild(statusSpan);
 
-        // info
-        const info = document.createElement('div');
-        info.className = 'pedido-info';
+            // info
+            const info = document.createElement('div');
+            info.className = 'pedido-info';
 
-        const pCliente = document.createElement('p');
-        pCliente.innerHTML = '<strong>Cliente:</strong> ';
-        pCliente.appendChild(document.createTextNode(`${pedido.usuario_nome ?? '—'} (${pedido.usuario_email ?? ''})`.trim() || '—'));
+            const pCliente = document.createElement('p');
+            pCliente.innerHTML = '<strong>Cliente:</strong> ';
 
-        const pServico = document.createElement('p');
-        pServico.innerHTML = '<strong>Serviço:</strong> ';
-        pServico.appendChild(document.createTextNode(pedido.servico ?? '—'));
+            // Campo robusto para casos em que o backend retorne cliente nulo ou chaves ausentes.
+            // Suporta tanto formato atual (usuario_nome/usuario_email) quanto eventual pedido.cliente.
+            const clienteObj = pedido?.cliente || null;
+            const clienteNome = clienteObj?.nome ?? pedido?.usuario_nome ?? 'Não Informado';
+            const clienteEmail = clienteObj?.email ?? pedido?.usuario_email ?? '';
+            const clienteTxt = clienteEmail ? `${clienteNome} (${clienteEmail})` : `${clienteNome}`;
+            pCliente.appendChild(document.createTextNode(clienteTxt));
 
-        const pDescricao = document.createElement('p');
-        pDescricao.innerHTML = '<strong>Descrição:</strong> ';
-        pDescricao.appendChild(document.createTextNode(pedido.descricao ?? '—'));
+            const pServico = document.createElement('p');
+            pServico.innerHTML = '<strong>Serviço:</strong> ';
+            pServico.appendChild(document.createTextNode(pedido?.servico ?? '—'));
 
-        const pValor = document.createElement('p');
-        pValor.innerHTML = '<strong>Orçamento Estimado:</strong> ';
-        const valorTxt = pedido.valor_estimado != null && pedido.valor_estimado !== ''
-            ? `R$ ${Number(pedido.valor_estimado).toFixed(2)}`
-            : 'R$ N/A';
-        pValor.appendChild(document.createTextNode(valorTxt));
+            const pDescricao = document.createElement('p');
+            pDescricao.innerHTML = '<strong>Descrição:</strong> ';
+            pDescricao.appendChild(document.createTextNode(pedido?.descricao ?? '—'));
 
-        const pData = document.createElement('p');
-        pData.innerHTML = '<strong>Data:</strong> ';
-        pData.appendChild(document.createTextNode(dataCriacao));
+            const pValor = document.createElement('p');
+            pValor.innerHTML = '<strong>Orçamento Estimado:</strong> ';
+            const valorTxt = pedido?.valor_estimado != null && pedido?.valor_estimado !== ''
+                ? `R$ ${Number(pedido.valor_estimado).toFixed(2)}`
+                : 'R$ N/A';
+            pValor.appendChild(document.createTextNode(valorTxt));
 
-        info.appendChild(pCliente);
-        info.appendChild(pServico);
-        info.appendChild(pDescricao);
-        info.appendChild(pValor);
-        info.appendChild(pData);
+            const pData = document.createElement('p');
+            pData.innerHTML = '<strong>Data:</strong> ';
+            pData.appendChild(document.createTextNode(dataCriacao));
 
-        // actions
-        const acoes = document.createElement('div');
-        acoes.className = 'pedido-acoes';
+            info.appendChild(pCliente);
+            info.appendChild(pServico);
+            info.appendChild(pDescricao);
+            info.appendChild(pValor);
+            info.appendChild(pData);
 
-        const btnDetalhes = document.createElement('button');
-        btnDetalhes.className = 'btn-detalhes';
-        btnDetalhes.type = 'button';
-        btnDetalhes.setAttribute('onclick', `verDetalhesPedido(${pedido.id})`);
-        btnDetalhes.innerHTML = '<i class="bi bi-eye"></i> Ver Detalhes';
+            // actions
+            const acoes = document.createElement('div');
+            acoes.className = 'pedido-acoes';
 
-        const btnIniciar = document.createElement('button');
-        btnIniciar.className = 'btn-status';
-        btnIniciar.type = 'button';
-        btnIniciar.setAttribute('onclick', `atualizarStatusPedido(${pedido.id}, 'em_andamento')`);
-        btnIniciar.innerHTML = '<i class="bi bi-play"></i> Iniciar';
+            const pid = pedido?.id;
 
-        const btnConcluir = document.createElement('button');
-        btnConcluir.className = 'btn-status';
-        btnConcluir.type = 'button';
-        btnConcluir.setAttribute('onclick', `atualizarStatusPedido(${pedido.id}, 'concluido')`);
-        btnConcluir.innerHTML = '<i class="bi bi-check-circle"></i> Concluir';
+            const btnDetalhes = document.createElement('button');
+            btnDetalhes.className = 'btn-detalhes';
+            btnDetalhes.type = 'button';
+            btnDetalhes.setAttribute('onclick', `verDetalhesPedido(${pid})`);
+            btnDetalhes.innerHTML = '<i class="bi bi-eye"></i> Ver Detalhes';
 
-        const btnApagar = document.createElement('button');
-        btnApagar.className = 'btn-apagar';
-        btnApagar.type = 'button';
-        btnApagar.setAttribute('onclick', `apagarPedido(${pedido.id})`);
-        btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
+            const btnIniciar = document.createElement('button');
+            btnIniciar.className = 'btn-status';
+            btnIniciar.type = 'button';
+            btnIniciar.setAttribute('onclick', `atualizarStatusPedido(${pid}, 'em_andamento')`);
+            btnIniciar.innerHTML = '<i class="bi bi-play"></i> Iniciar';
 
-        acoes.appendChild(btnDetalhes);
-        acoes.appendChild(btnIniciar);
-        acoes.appendChild(btnConcluir);
-        acoes.appendChild(btnApagar);
+            const btnConcluir = document.createElement('button');
+            btnConcluir.className = 'btn-status';
+            btnConcluir.type = 'button';
+            btnConcluir.setAttribute('onclick', `atualizarStatusPedido(${pid}, 'concluido')`);
+            btnConcluir.innerHTML = '<i class="bi bi-check-circle"></i> Concluir';
 
-        card.appendChild(header);
-        card.appendChild(info);
-        card.appendChild(acoes);
+            const btnApagar = document.createElement('button');
+            btnApagar.className = 'btn-apagar';
+            btnApagar.type = 'button';
+            btnApagar.setAttribute('onclick', `apagarPedido(${pid})`);
+            btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
 
-        container.appendChild(card);
+            acoes.appendChild(btnDetalhes);
+            acoes.appendChild(btnIniciar);
+            acoes.appendChild(btnConcluir);
+            acoes.appendChild(btnApagar);
+
+            card.appendChild(header);
+            card.appendChild(info);
+            card.appendChild(acoes);
+
+            container.appendChild(card);
+        } catch (err) {
+            console.error('Erro ao renderizar pedido (mantendo os demais):', err, pedido);
+        }
     });
 }
 
@@ -913,8 +954,8 @@ async function apagarPedido(pedidoId) {
         }
 
         mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Pedido apagado com sucesso.', tipo: 'sucesso' });
-        carregarPedidos();
-        carregarDashboard();
+        // Atualiza em tempo real
+        await Promise.allSettled([carregarPedidos(), carregarDashboard()]);
     } catch (e) {
         console.error('Erro ao apagar pedido:', e);
         mostrarModalMensagem({ titulo: 'Erro', mensagem: e?.message || 'Erro ao apagar pedido.', tipo: 'erro' });

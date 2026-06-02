@@ -52,8 +52,10 @@ def get_dashboard():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/admin/clientes", methods=["GET"])
-@jwt_required()
+# OBS: run.py registra admin_bp com url_prefix='/api'.
+# Portanto estas rotas ficam em: /api/clientes e /api/suporte/mensagens.
+
+@admin_bp.route("/clientes", methods=["GET"])
 @require_admin()
 def get_clientes():
     try:
@@ -73,7 +75,9 @@ def get_clientes():
                     "nome": usuario.nome,
                     "email": usuario.email,
                     "telefone": usuario.telefone,
-                    "data_cadastro": usuario.data_cadastro.isoformat() if usuario.data_cadastro else None,
+                    "data_cadastro": usuario.data_cadastro.isoformat()
+                    if usuario.data_cadastro
+                    else None,
                     "data_ultimo_login": usuario.data_ultimo_login.isoformat()
                     if usuario.data_ultimo_login
                     else None,
@@ -186,10 +190,25 @@ def get_pedidos():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/admin/pedido/<int:pedido_id>", methods=["GET"])
+@admin_bp.route("/admin/pedido/<int:pedido_id>", methods=["GET", "DELETE"])
 @jwt_required()
 @require_admin()
-def get_pedido(pedido_id):
+def pedido_detail(pedido_id):
+    # DELETE (apagar pedido)
+    if request.method == "DELETE":
+        try:
+            pedido = Pedido.query.get(pedido_id)
+            if not pedido:
+                return jsonify({"error": "Pedido não encontrado"}), 404
+
+            db.session.delete(pedido)
+            db.session.commit()
+            return jsonify({"message": "Pedido apagado com sucesso"}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    # GET (detalhes)
     try:
         pedido = Pedido.query.get(pedido_id)
         if not pedido:
@@ -207,7 +226,9 @@ def get_pedido(pedido_id):
                     "servico": pedido.tipo_servico,
                     "descricao": pedido.descricao,
                     "status": pedido.status,
-                    "valor_estimado": float(pedido.valor_estimado) if pedido.valor_estimado else None,
+                    "valor_estimado": float(pedido.valor_estimado)
+                    if pedido.valor_estimado
+                    else None,
                     "data_criacao": pedido.data_criacao.isoformat() if pedido.data_criacao else None,
                 }
             ),
@@ -247,12 +268,11 @@ def update_pedido_status(pedido_id):
         return jsonify({"error": str(e)}), 500
 
 
-@admin_bp.route("/admin/suporte/mensagens", methods=["GET"])
+@admin_bp.route("/suporte/mensagens", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_mensagens_suporte():
     try:
-        # 1 linha por usuario_id: pega o chamado mais recente daquele usuário.
         subq = (
             db.session.query(
                 ChamadoSuporte.usuario_id.label("usuario_id"),
