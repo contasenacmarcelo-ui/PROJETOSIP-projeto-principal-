@@ -20,7 +20,7 @@ def verificar_admin(user_id=None):
     if user_id is None:
         user_id = int(get_jwt_identity())
     usuario = Usuario.query.get(user_id)
-    return usuario and usuario.role == "admin"
+    return bool(usuario and usuario.role == "admin")
 
 
 def require_admin():
@@ -32,10 +32,11 @@ def require_admin():
             try:
                 is_admin = verificar_admin()
             except Exception:
-                return jsonify({"error": "Token inválido"}), 401
+                return jsonify({"error": "Não autenticado"}), 401
 
             if not is_admin:
                 return jsonify({"error": "Acesso negado. Apenas admin."}), 403
+
             return f(*args, **kwargs)
 
         return decorated_function

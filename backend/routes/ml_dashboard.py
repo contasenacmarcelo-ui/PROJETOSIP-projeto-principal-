@@ -16,6 +16,7 @@ def status():
 
 
 @ml_bp.route("/dados", methods=["GET"])
+@jwt_required()
 def get_dados():
     """Busca dados do banco que precisam validação"""
     try:

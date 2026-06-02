@@ -113,6 +113,9 @@ def listar_mensagens(chamado_id):
     if not chamado:
         return jsonify({"error": "Conversa não encontrada"}), 404
 
+    if not user:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+
     if user.role != "admin" and chamado.usuario_id != current_user_id:
         return jsonify({"error": "Acesso negado"}), 403
 
