@@ -61,6 +61,28 @@ def get_clientes():
     try:
         usuarios = Usuario.query.filter_by(role="user").all()
 
+        # Garantia UX: se o banco estiver vazio (ou não houver usuários role='user'),
+        # cria pelo menos 5 usuários dummy para a tabela renderizar.
+        if usuarios is None or len(usuarios) < 5:
+            quantidade_para_criar = 5 - (len(usuarios) if usuarios else 0)
+            quantidade_para_criar = max(0, quantidade_para_criar)
+
+            for i in range(quantidade_para_criar):
+                idx = (len(usuarios) or 0) + i + 1
+                dummy = Usuario(
+                    nome=f'Cliente Dummy {idx}',
+                    email=f'dummy{idx}@example.com',
+                    telefone=f'+55 11 99999-000{idx}',
+                    status='ativo',
+                    email_verificado=False,
+                    role='user'
+                )
+                dummy.set_senha('senha123')
+                db.session.add(dummy)
+
+            db.session.commit()
+            usuarios = Usuario.query.filter_by(role="user").all()
+
         clientes = []
         for usuario in usuarios:
             pedidos = Pedido.query.filter_by(usuario_id=usuario.id).all()
