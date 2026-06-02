@@ -53,7 +53,7 @@ def get_dashboard():
 
 
 # OBS: run.py registra admin_bp com url_prefix='/api'.
-# Portanto estas rotas ficam em: /api/clientes e /api/suporte/mensagens.
+# Portanto estas rotas ficam em: /api/admin/clientes e /api/admin/suporte/mensagens.
 
 @admin_bp.route("/clientes", methods=["GET"])
 @require_admin()
@@ -290,7 +290,7 @@ def update_pedido_status(pedido_id):
         return jsonify({"error": str(e)}), 500
 
 
-@admin_bp.route("/suporte/mensagens", methods=["GET"])
+@admin_bp.route("/admin/suporte/mensagens", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_mensagens_suporte():

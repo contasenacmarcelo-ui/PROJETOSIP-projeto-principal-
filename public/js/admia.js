@@ -440,6 +440,8 @@ function exibirModalDetalhes(data) {
 async function carregarRelatorioML() {
     try {
         // Preferência: exemplos (seed) do endpoint novo. Fallback: relatório agregado.
+        // Compatibilidade: no projeto atual o ML dashboard expõe dados em /api/ml-executivo/dados.
+        // Mantemos fallback para os endpoints antigos se existirem.
         let response = await fetch(`${API_BASE}/admin/ml/exemplos`, {
             headers: apiHeaders(false)
         });
@@ -449,6 +451,13 @@ async function carregarRelatorioML() {
                 headers: apiHeaders(false)
             });
         }
+
+        if (!response.ok) {
+            response = await fetch(`${API_BASE}/ml-executivo/dados`, {
+                headers: apiHeaders(true)
+            });
+        }
+
 
 
 
