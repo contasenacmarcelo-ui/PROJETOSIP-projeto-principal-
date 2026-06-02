@@ -5,17 +5,52 @@ from ..models import ChamadoSuporte, Notificacao, Orcamento, Pedido, Usuario, db
 from ..utils import require_admin
 from sqlalchemy import func
 
+
+# -------------------- ML (admin) - mocks/fixtures para estabilidade do frontend --------------------
+
+
+def _ml_mock_exemplos_por_modelo():
+    """Gera estrutura estável para /api/admin/ml/exemplos.
+
+    Retorna 5 exemplos por modelo com chaves: exemplo_idx, input, output.
+    """
+
+    modelos = [
+        "classificador_suporte",
+        "recomendador_servicos",
+        "estimador_orcamento",
+        "detector_anomalias",
+        "clustering_clientes",
+        "extrator_tags",
+    ]
+    exemplos_por_modelo = {}
+    for nome_modelo in modelos:
+        exemplos = []
+        for idx in range(1, 6):
+            exemplos.append(
+                {
+                    "exemplo_idx": idx,
+                    "input": {"modelo": nome_modelo, "exemplo": idx},
+                    "output": {"modelo": nome_modelo, "resultado": None},
+                }
+            )
+        exemplos_por_modelo[nome_modelo] = exemplos
+    return exemplos_por_modelo
+
+
+
 admin_bp = Blueprint("admin", __name__)
 
 
 def _safe_iso(dt):
+
     try:
         return dt.isoformat() if dt else None
     except Exception:
         return None
 
 
-@admin_bp.route("/admin/dashboard", methods=["GET"])
+@admin_bp.route("/dashboard", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_dashboard():
@@ -155,7 +190,7 @@ def get_clientes():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/admin/pedidos", methods=["GET"])
+@admin_bp.route("/pedidos", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_pedidos():
@@ -212,7 +247,7 @@ def get_pedidos():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/admin/pedido/<int:pedido_id>", methods=["GET", "DELETE"])
+@admin_bp.route("/pedido/<int:pedido_id>", methods=["GET", "DELETE"])
 @jwt_required()
 @require_admin()
 def pedido_detail(pedido_id):
@@ -290,7 +325,7 @@ def update_pedido_status(pedido_id):
         return jsonify({"error": str(e)}), 500
 
 
-@admin_bp.route("/admin/suporte/mensagens", methods=["GET"])
+@admin_bp.route("/suporte/mensagens", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_mensagens_suporte():
@@ -368,11 +403,28 @@ def get_mensagens_suporte():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/admin/suporte/<int:chamado_id>/responder", methods=["POST"])
+@admin_bp.route("/admin/ml/exemplos", methods=["GET"])
+@jwt_required()
+@require_admin()
+def ml_exemplos():
+    return jsonify({"status": "success", "exemplos_por_modelo": _ml_mock_exemplos_por_modelo()}), 200
+
+
+@admin_bp.route("/admin/relatorio/ml", methods=["GET"])
+@jwt_required()
+@require_admin()
+def relatorio_ml():
+    # Estrutura estável para não quebrar o frontend enquanto o ML não persistir em banco
+    return jsonify({"status": "success", "data": []}), 200
+
+
+@admin_bp.route("/suporte/<int:chamado_id>/responder", methods=["POST"])
 @jwt_required()
 @require_admin()
 def responder_chamado(chamado_id):
+
     data = request.get_json()
+
     if not data or "resposta" not in data:
         return jsonify({"error": "Campo 'resposta' é obrigatório"}), 400
 

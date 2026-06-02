@@ -1,24 +1,14 @@
-# TODO - Varredura, correções e exclusão no ADM
+# TODO - Ajustes de Endpoints Admin (Sem Quebras)
 
-## Etapa 1 — Varredura e revisão de código
-- [x] Revisar `public/js/admia.js` por riscos de XSS/innerHTML com dados do backend.
-- [x] Revisar back-end (blueprints/rotas) por falhas e ausência de DELETE para admin.
+- [x] Identificar prefixo real do Blueprint `admin_bp` (url_prefix='/api' em `backend/app.py`).
+- [x] Corrigir rotas em `backend/routes/admin.py` removendo duplicação de `/admin/...` dentro do blueprint.
+- [ ] Adicionar endpoints mock (200 + JSON estável) para:
+  - [ ] GET/POST (se aplicável) `/api/admin/ml/exemplos`
+  - [ ] GET/POST (se aplicável) `/api/admin/relatorio/ml`
+- [ ] Aplicar isolamento defensivo (getattr) nas rotas de listagem:
+  - [ ] `get_clientes`
+  - [ ] `get_mensagens_suporte`
 
-
-## Etapa 2 — Ajustes no front-end (admia)
-- [ ] Adicionar botões “Apagar” para Clientes na UI gerada pelo `admia.js`.
-- [ ] Adicionar botões “Apagar” para Pedidos na UI gerada pelo `admia.js`.
-- [ ] Adicionar botões “Apagar” para Mensagens de Suporte na UI gerada pelo `admia.js`.
-
-
-## Etapa 3 — Rotas back-end e QA
-- [x] Implementar rotas DELETE admin em `backend/routes/admin.py`.
-
-- [x] Garantir que `backend/app.py` registra o blueprint admin.
-
-- [ ] Validar status codes e efeitos no banco via smoke test (script/requests).
-
-
-## Entrega
-- [ ] Listar arquivos alterados, correções feitas e trechos de código principais.
+- [ ] Verificar/garantir import de todos os modelos necessários no topo do arquivo.
+- [ ] Revisar o arquivo `backend/routes/admin.py` completo e entregar consolidado.
 
