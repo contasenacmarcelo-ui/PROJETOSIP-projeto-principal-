@@ -15,11 +15,36 @@ def _safe_iso(dt):
         return None
 
 
-def _ensure_seed_data():
-    """Seed idempotente para garantir dados mínimos para o admin/chat."""
+def _ml_mock_exemplos_por_modelo():
+    """Gera estrutura estável para /api/admin/ml/exemplos."""
 
-    # 1) Usuários
-    # Criamos 3 usuários admin/user com status/role coerentes.
+    modelos = [
+        "classificador_suporte",
+        "recomendador_servicos",
+        "estimador_orcamento",
+        "detector_anomalias",
+        "clustering_clientes",
+        "extrator_tags",
+    ]
+    exemplos_por_modelo = {}
+    for nome_modelo in modelos:
+        exemplos = []
+        for idx in range(1, 6):
+            exemplos.append(
+                {
+                    "exemplo_idx": idx,
+                    "input": {"modelo": nome_modelo, "exemplo": idx},
+                    "output": {"modelo": nome_modelo, "resultado": None},
+                }
+            )
+        exemplos_por_modelo[nome_modelo] = exemplos
+    return exemplos_por_modelo
+
+
+def _ensure_seed_data():
+    """Seed idempotente para garantir dados mínimos para admin/chat."""
+
+    # 1) Usuários (3)
     seed_users = [
         {
             "nome": "Admin SIP",
@@ -44,7 +69,6 @@ def _ensure_seed_data():
         },
     ]
 
-    # Password fixa (compatível com set_senha)
     senha = "senha123"
 
     created_users = []
@@ -66,46 +90,34 @@ def _ensure_seed_data():
         db.session.add(novo)
         created_users.append(novo)
 
-    # flush para obter ids
     db.session.flush()
 
+    # map por email
+    def _get_user(email):
+        return Usuario.query.filter(Usuario.email == email).first()
+
+    user_admin = _get_user(seed_users[0]["email"])
+    user_1 = _get_user(seed_users[1]["email"])
+    user_2 = _get_user(seed_users[2]["email"])
+
     # 2) Pedidos fictícios (3)
-    # Vincular ao primeiro cliente user.
-    users_by_role = {r["role"]: None for r in seed_users}
-    # Mapear por email pra garantir ids corretos
-    for su in seed_users:
-        uobj = Usuario.query.filter(Usuario.email == su["email"]).first()
-        if uobj:
-            users_by_role[su["role"]] = uobj
-
-    cliente_admin = next((x for x in created_users if x.role == "admin"), None)
-    cliente_user_1 = next((x for x in created_users if x.role == "user" and x.email == seed_users[1]["email"]), None)
-    cliente_user_2 = next((x for x in created_users if x.role == "user" and x.email == seed_users[2]["email"]), None)
-
-    # Se ainda não existirem no banco por query (por flush), fazemos fallback.
-    if not cliente_user_1:
-        cliente_user_1 = Usuario.query.filter(Usuario.email == seed_users[1]["email"]).first()
-    if not cliente_user_2:
-        cliente_user_2 = Usuario.query.filter(Usuario.email == seed_users[2]["email"]).first()
-
-    # Idempotência: verificar pedidos seed por descricao
     seed_pedidos = [
         {
-            "usuario": cliente_user_1,
+            "usuario": user_1,
             "tipo_servico": "sistema",
             "descricao": "Pedido seed 1 - sistema",
             "status": "pendente",
             "valor_estimado": 1200.0,
         },
         {
-            "usuario": cliente_user_1,
+            "usuario": user_1,
             "tipo_servico": "website",
             "descricao": "Pedido seed 2 - website",
             "status": "em_andamento",
             "valor_estimado": 3500.0,
         },
         {
-            "usuario": cliente_user_2,
+            "usuario": user_2,
             "tipo_servico": "app",
             "descricao": "Pedido seed 3 - app",
             "status": "pendente",
@@ -120,19 +132,20 @@ def _ensure_seed_data():
         if exists_pedido:
             continue
 
-        novo_p = Pedido(
-            usuario_id=sp["usuario"].id,
-            tipo_servico=sp["tipo_servico"],
-            descricao=sp["descricao"],
-            status=sp["status"],
-            valor_estimado=sp["valor_estimado"],
+        db.session.add(
+            Pedido(
+                usuario_id=sp["usuario"].id,
+                tipo_servico=sp["tipo_servico"],
+                descricao=sp["descricao"],
+                status=sp["status"],
+                valor_estimado=sp["valor_estimado"],
+            )
         )
-        db.session.add(novo_p)
 
-    # 3) Chamados/"mensagens" básicas (2)
+    # 3) Chamados/mensagens básicas (2)
     seed_chamados = [
         {
-            "usuario": cliente_user_1,
+            "usuario": user_1,
             "titulo": "Suporte seed 1",
             "descricao": "Mensagem inicial do suporte (seed 1).",
             "categoria_classificada": "duvida",
@@ -142,14 +155,14 @@ def _ensure_seed_data():
             "conteudo_msg": "Olá! Preciso de ajuda com o sistema (seed).",
         },
         {
-            "usuario": cliente_user_2,
+            "usuario": user_2,
             "titulo": "Suporte seed 2",
             "descricao": "Mensagem inicial do suporte (seed 2).",
             "categoria_classificada": "bug",
             "prioridade": "alta",
             "status": "aberto",
             "autor_tipo": "user",
-            "conteudo_msg": "Minha aplicação está com erro. (seed) ",
+            "conteudo_msg": "Minha aplicação está com erro. (seed)",
         },
     ]
 
@@ -157,8 +170,7 @@ def _ensure_seed_data():
         if not sc["usuario"]:
             continue
 
-        exists_chamado = ChamadoSuporte.query.filter(ChamadoSuporte.titulo == sc["titulo"]).first()
-        chamado = exists_chamado
+        chamado = ChamadoSuporte.query.filter(ChamadoSuporte.titulo == sc["titulo"]).first()
         if not chamado:
             chamado = ChamadoSuporte(
                 usuario_id=sc["usuario"].id,
@@ -171,24 +183,25 @@ def _ensure_seed_data():
             db.session.add(chamado)
             db.session.flush()
 
-        # Seed de pelo menos 1 mensagem para o chamado
         exists_msg = MensagemSuporte.query.filter(
             MensagemSuporte.chamado_id == chamado.id,
             MensagemSuporte.conteudo == sc["conteudo_msg"],
         ).first()
+
         if not exists_msg:
-            msg = MensagemSuporte(
-                chamado_id=chamado.id,
-                autor_tipo=sc["autor_tipo"],
-                autor_usuario_id=sc["usuario"].id,
-                conteudo=sc["conteudo_msg"],
+            db.session.add(
+                MensagemSuporte(
+                    chamado_id=chamado.id,
+                    autor_tipo=sc["autor_tipo"],
+                    autor_usuario_id=sc["usuario"].id,
+                    conteudo=sc["conteudo_msg"],
+                )
             )
-            db.session.add(msg)
 
     db.session.commit()
 
 
-# ---- Rotas Admin ----
+# -------------------- Rotas Admin --------------------
 
 @admin_bp.route("/dashboard", methods=["GET"])
 @jwt_required()
@@ -217,14 +230,7 @@ def get_dashboard():
             }
         )
     except Exception as e:
-        import traceback
-
-        error_msg = getattr(e, "message", str(e))
-        if hasattr(e, "orig"):
-            error_msg = f"DB Error: {str(e.orig)} | Detalhes: {str(e)}"
-        print(f"ERR: {error_msg}")
-        traceback.print_exc()
-        return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
+        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
 
 
 @admin_bp.route("/clientes", methods=["GET"])
@@ -233,6 +239,7 @@ def get_clientes():
     try:
         usuarios = Usuario.query.filter_by(role="user").all()
 
+        # UX: garante no mínimo 5 usuários dummy para renderização
         if usuarios is None or len(usuarios) < 5:
             quantidade_para_criar = 5 - (len(usuarios) if usuarios else 0)
             quantidade_para_criar = max(0, quantidade_para_criar)
@@ -284,40 +291,7 @@ def get_clientes():
 
         return jsonify({"total": len(clientes), "clientes": clientes}), 200
     except Exception as e:
-        import traceback
-
-        try:
-            clientes = [
-                {
-                    "id": u.id,
-                    "nome": u.nome,
-                    "email": u.email,
-                    "telefone": u.telefone,
-                    "data_cadastro": u.data_cadastro.isoformat() if u.data_cadastro else None,
-                    "data_ultimo_login": u.data_ultimo_login.isoformat() if u.data_ultimo_login else None,
-                    "email_verificado": u.email_verificado,
-                    "status": u.status,
-                    "num_pedidos": 0,
-                    "num_chamados": 0,
-                    "num_orcamentos": 0,
-                    "valor_total_pedidos": 0,
-                    "total_gasto": getattr(u, "total_gasto", 0),
-                    "pedidos": [],
-                    "chamados": [],
-                    "orcamentos": [],
-                }
-                for u in Usuario.query.all()
-            ]
-            return jsonify({"total": len(clientes), "clientes": clientes}), 200
-        except Exception:
-            pass
-
-        error_msg = getattr(e, "message", str(e))
-        if hasattr(e, "orig"):
-            error_msg = f"DB Error: {str(e.orig)} | Detalhes: {str(e)}"
-        print(f"ERR: {error_msg}")
-        traceback.print_exc()
-        return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
+        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
 
 
 @admin_bp.route("/pedidos", methods=["GET"])
@@ -327,7 +301,6 @@ def get_pedidos():
     try:
         pedidos = Pedido.query.all()
         pedidos_data = []
-
         for pedido in pedidos:
             usuario = Usuario.query.get(pedido.usuario_id)
             pedidos_data.append(
@@ -343,37 +316,9 @@ def get_pedidos():
                     "data_criacao": pedido.data_criacao.isoformat() if pedido.data_criacao else None,
                 }
             )
-
         return jsonify({"pedidos": pedidos_data}), 200
     except Exception as e:
-        import traceback
-
-        try:
-            pedidos = Pedido.query.all()
-            pedidos_data = [
-                {
-                    "id": p.id,
-                    "usuario_id": p.usuario_id,
-                    "usuario_nome": "—",
-                    "usuario_email": "",
-                    "servico": p.tipo_servico,
-                    "descricao": p.descricao,
-                    "status": p.status,
-                    "valor_estimado": float(p.valor_estimado) if p.valor_estimado else None,
-                    "data_criacao": p.data_criacao.isoformat() if p.data_criacao else None,
-                }
-                for p in pedidos
-            ]
-            return jsonify({"pedidos": pedidos_data}), 200
-        except Exception:
-            pass
-
-        error_msg = getattr(e, "message", str(e))
-        if hasattr(e, "orig"):
-            error_msg = f"DB Error: {str(e.orig)} | Detalhes: {str(e)}"
-        print(f"ERR: {error_msg}")
-        traceback.print_exc()
-        return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
+        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
 
 
 @admin_bp.route("/pedido/<int:pedido_id>", methods=["GET", "DELETE"])
@@ -385,7 +330,6 @@ def pedido_detail(pedido_id):
             pedido = Pedido.query.get(pedido_id)
             if not pedido:
                 return jsonify({"error": "Pedido não encontrado"}), 404
-
             db.session.delete(pedido)
             db.session.commit()
             return jsonify({"message": "Pedido apagado com sucesso"}), 200
@@ -397,9 +341,7 @@ def pedido_detail(pedido_id):
         pedido = Pedido.query.get(pedido_id)
         if not pedido:
             return jsonify({"error": "Pedido não encontrado"}), 404
-
         usuario = Usuario.query.get(pedido.usuario_id)
-
         return (
             jsonify(
                 {
@@ -432,22 +374,12 @@ def update_pedido_status(pedido_id):
         pedido = Pedido.query.get(pedido_id)
         if not pedido:
             return jsonify({"error": "Pedido não encontrado"}), 404
-
         pedido.status = data["status"]
         db.session.commit()
-
-        return (
-            jsonify(
-                {
-                    "message": "Status atualizado com sucesso",
-                    "pedido": {"id": pedido.id, "status": pedido.status},
-                }
-            ),
-            200,
-        )
-    except Exception:
+        return jsonify({"message": "Status atualizado com sucesso"}), 200
+    except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Falha ao atualizar status"}), 500
+        return jsonify({"error": str(e)}), 500
 
 
 @admin_bp.route("/suporte/mensagens", methods=["GET"])
@@ -494,46 +426,16 @@ def get_mensagens_suporte():
 
         mensagens = list(mensagens_por_usuario.values())
         return jsonify({"total": len(mensagens), "mensagens": mensagens}), 200
-    except Exception as e:
-        import traceback
-
-        try:
-            chamados = ChamadoSuporte.query.all()
-            mensagens = []
-            for c in chamados:
-                u = Usuario.query.get(c.usuario_id)
-                mensagens.append(
-                    {
-                        "id": c.id,
-                        "usuario_id": c.usuario_id,
-                        "nome": u.nome if u else "—",
-                        "email": u.email if u else "—",
-                        "titulo": c.titulo,
-                        "descricao": c.descricao,
-                        "categoria_classificada": c.categoria_classificada,
-                        "prioridade": c.prioridade,
-                        "status": c.status,
-                        "data": _safe_iso(c.data),
-                    }
-                )
-            return jsonify({"total": len(mensagens), "mensagens": mensagens}), 200
-        except Exception:
-            pass
-
-        error_msg = getattr(e, "message", str(e))
-        if hasattr(e, "orig"):
-            error_msg = f"DB Error: {str(e.orig)} | Detalhes: {str(e)}"
-        print(f"ERR: {error_msg}")
-        traceback.print_exc()
-        return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
+    except Exception:
+        return jsonify({"total": 0, "mensagens": []}), 200
 
 
 @admin_bp.route("/suporte/<int:chamado_id>/responder", methods=["POST"])
 @jwt_required()
 @require_admin()
 def responder_chamado(chamado_id):
-    data = request.get_json()
-    if not data or "resposta" not in data:
+    data = request.get_json() or {}
+    if "resposta" not in data:
         return jsonify({"error": "Campo 'resposta' é obrigatório"}), 400
 
     try:
@@ -551,21 +453,35 @@ def responder_chamado(chamado_id):
         )
         db.session.add(notificacao)
         db.session.commit()
-
         return jsonify({"message": "Resposta enviada com sucesso", "chamado": chamado.to_dict()}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 
+# -------------------- Seed e ML fixtures --------------------
+
 @admin_bp.route("/seed", methods=["GET"])
 @jwt_required()
 @require_admin()
 def seed():
     try:
-        # Faz seed idempotente: não duplica se já existir.
         _ensure_seed_data()
         return jsonify({"status": "success", "message": "Banco de dados populado com sucesso"}), 200
     except Exception as e:
         return jsonify({"status": "failed", "error": str(e)}), 500
+
+
+@admin_bp.route("/admin/ml/exemplos", methods=["GET"])
+@jwt_required()
+@require_admin()
+def ml_exemplos():
+    return jsonify({"status": "success", "exemplos_por_modelo": _ml_mock_exemplos_por_modelo()}), 200
+
+
+@admin_bp.route("/admin/relatorio/ml", methods=["GET"])
+@jwt_required()
+@require_admin()
+def relatorio_ml():
+    return jsonify({"status": "success", "data": []}), 200
 

@@ -9,12 +9,13 @@ chat_bp = Blueprint("chat", __name__)
 @chat_bp.route("/chat/conversas", methods=["GET"])
 @jwt_required()
 def listar_conversas():
-    """Retorna conversas para admin e usuários.
+    """Admin: retorna conversas para o painel.
 
-    - Admin: lista conversas por usuário (mesmo sem mensagens, se não houver chamados no banco).
-    - Usuário: lista somente conversas do seu usuário.
+    Requisito do task:
+    - nunca explodir com 500.
+    - em falhas/DB vazia: retorna JSON seguro {"conversas": []} com status 200.
 
-    Segurança exigida: em caso de falha/DB vazia, retorna JSON seguro com {"conversas": []} e status 200.
+    Observação: o frontend espera `data.conversas`.
     """
 
     try:
@@ -23,7 +24,7 @@ def listar_conversas():
 
         usuario_atual = Usuario.query.get(current_user_id)
         if not usuario_atual:
-            return jsonify({"conversas": []}), 200
+            return jsonify({"total": 0, "conversas": []}), 200
 
         is_admin = usuario_atual.role == "admin"
 
@@ -33,28 +34,9 @@ def listar_conversas():
 
         chamados = query.order_by(ChamadoSuporte.data.desc()).all()
 
-        # Se for admin e não houver chamados, devolve usuários (role=user) como contatos “sem histórico”.
-        if is_admin and len(chamados) == 0:
-            usuarios = Usuario.query.filter(Usuario.role == "user").all()
-            conversas = [
-                {
-                    "chamado_id": None,
-                    "usuario_id": u.id,
-                    "usuario_nome": u.nome,
-                    "usuario_email": u.email,
-                    "titulo": None,
-                    "descricao": None,
-                    "status_conversa": None,
-                    "prioridade": None,
-                    "data_thread": None,
-                    "ultima_mensagem": None,
-                    "ultima_mensagem_data": None,
-                    "ultima_mensagem_autor": None,
-                    "qtd_mensagens": 0,
-                }
-                for u in usuarios
-            ]
-            return jsonify({"total": len(conversas), "conversas": conversas}), 200
+        # Em caso admin sem chamados, retornamos lista vazia (o JS faz fallback).
+        if len(chamados) == 0:
+            return jsonify({"total": 0, "conversas": []}), 200
 
         conversas = []
         for c in chamados:
@@ -64,7 +46,6 @@ def listar_conversas():
                 .order_by(MensagemSuporte.data.desc())
                 .first()
             )
-
             qtd = MensagemSuporte.query.filter_by(chamado_id=c.id).count()
 
             conversas.append(
@@ -84,7 +65,9 @@ def listar_conversas():
                         if ultima_msg and ultima_msg.data
                         else None
                     ),
-                    "ultima_mensagem_autor": ultima_msg.autor_tipo if ultima_msg else None,
+                    "ultima_mensagem_autor": (
+                        ultima_msg.autor_tipo if ultima_msg else None
+                    ),
                     "qtd_mensagens": qtd,
                 }
             )
@@ -92,68 +75,79 @@ def listar_conversas():
         return jsonify({"total": len(conversas), "conversas": conversas}), 200
 
     except Exception:
-        # Fail-safe: sempre responder com JSON seguro para não estourar o frontend.
-        return jsonify({"conversas": []}), 200
+        return jsonify({"total": 0, "conversas": []}), 200
 
 
 @chat_bp.route("/chat/<int:chamado_id>/mensagens", methods=["GET"])
 @jwt_required()
 def listar_mensagens(chamado_id):
-    current_user_id = int(get_jwt_identity())
-    user = Usuario.query.get(current_user_id)
+    try:
+        current_user_id = int(get_jwt_identity())
+        user = Usuario.query.get(current_user_id)
 
-    chamado = ChamadoSuporte.query.get(chamado_id)
-    if not chamado:
-        return jsonify({"error": "Conversa não encontrada"}), 404
+        chamado = ChamadoSuporte.query.get(chamado_id)
+        if not chamado:
+            return jsonify({"error": "Conversa não encontrada"}), 404
 
-    if not user:
-        return jsonify({"error": "Usuário não encontrado"}), 404
+        if not user:
+            return jsonify({"error": "Usuário não encontrado"}), 404
 
-    if user.role != "admin" and chamado.usuario_id != current_user_id:
-        return jsonify({"error": "Acesso negado"}), 403
+        if user.role != "admin" and chamado.usuario_id != current_user_id:
+            return jsonify({"error": "Acesso negado"}), 403
 
-    mensagens = (
-        MensagemSuporte.query.filter_by(chamado_id=chamado_id)
-        .order_by(MensagemSuporte.data.asc())
-        .all()
-    )
+        mensagens = (
+            MensagemSuporte.query.filter_by(chamado_id=chamado_id)
+            .order_by(MensagemSuporte.data.asc())
+            .all()
+        )
 
-    return (
-        jsonify({"chamado_id": chamado.id, "mensagens": [m.to_dict() for m in mensagens]}),
-        200,
-    )
+        return (
+            jsonify(
+                {
+                    "chamado_id": chamado.id,
+                    "mensagens": [m.to_dict() for m in mensagens],
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @chat_bp.route("/chat/<int:chamado_id>/mensagens", methods=["POST"])
 @jwt_required()
 def enviar_mensagem(chamado_id):
-    current_user_id = int(get_jwt_identity())
-    user = Usuario.query.get(current_user_id)
+    try:
+        current_user_id = int(get_jwt_identity())
+        user = Usuario.query.get(current_user_id)
 
-    data = request.get_json() or {}
-    conteudo = (data.get("conteudo") or "").strip()
+        data = request.get_json() or {}
+        conteudo = (data.get("conteudo") or "").strip()
 
-    if not conteudo:
-        return jsonify({"error": "Campo conteudo é obrigatório"}), 400
+        if not conteudo:
+            return jsonify({"error": "Campo conteudo é obrigatório"}), 400
 
-    chamado = ChamadoSuporte.query.get(chamado_id)
-    if not chamado:
-        return jsonify({"error": "Conversa não encontrada"}), 404
+        chamado = ChamadoSuporte.query.get(chamado_id)
+        if not chamado:
+            return jsonify({"error": "Conversa não encontrada"}), 404
 
-    if user.role != "admin" and chamado.usuario_id != current_user_id:
-        return jsonify({"error": "Acesso negado"}), 403
+        if user.role != "admin" and chamado.usuario_id != current_user_id:
+            return jsonify({"error": "Acesso negado"}), 403
 
-    autor_tipo = "admin" if user.role == "admin" else "user"
+        autor_tipo = "admin" if user.role == "admin" else "user"
 
-    msg = MensagemSuporte(
-        chamado_id=chamado_id,
-        autor_tipo=autor_tipo,
-        autor_usuario_id=current_user_id,
-        conteudo=conteudo,
-    )
+        msg = MensagemSuporte(
+            chamado_id=chamado_id,
+            autor_tipo=autor_tipo,
+            autor_usuario_id=current_user_id,
+            conteudo=conteudo,
+        )
 
-    db.session.add(msg)
-    db.session.commit()
+        db.session.add(msg)
+        db.session.commit()
 
-    return jsonify({"message": "Mensagem enviada", "mensagem": msg.to_dict()}), 201
+        return jsonify({"message": "Mensagem enviada", "mensagem": msg.to_dict()}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
