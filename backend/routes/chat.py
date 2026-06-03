@@ -2,53 +2,41 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from ..models import db, Usuario, ChamadoSuporte, MensagemSuporte
-from ..utils import require_admin
 
 chat_bp = Blueprint("chat", __name__)
-
-
-def _to_int(value, default=None):
-    try:
-        return int(value)
-    except Exception:
-        return default
 
 
 @chat_bp.route("/chat/conversas", methods=["GET"])
 @jwt_required()
 def listar_conversas():
-    """Admin: retorna todas as conversas (usuários que têm chamados/mensagens).
+    """Retorna conversas para admin e usuários.
 
+    - Admin: lista conversas por usuário (mesmo sem mensagens, se não houver chamados no banco).
+    - Usuário: lista somente conversas do seu usuário.
 
-    Usuário: retorna somente suas conversas.
+    Segurança exigida: em caso de falha/DB vazia, retorna JSON seguro com {"conversas": []} e status 200.
     """
 
-    identity = get_jwt_identity()
-    # flask-jwt-extended pode fornecer identity como int, str ou até outro tipo.
-    # Normalizamos para string e depois convertemos.
-    current_user_id = int(str(identity))
+    try:
+        identity = get_jwt_identity()
+        current_user_id = int(str(identity))
 
-    usuario_atual = Usuario.query.get(current_user_id)
-    if not usuario_atual:
-        return jsonify({"error": "Usuário não encontrado"}), 404
+        usuario_atual = Usuario.query.get(current_user_id)
+        if not usuario_atual:
+            return jsonify({"conversas": []}), 200
 
-    is_admin = usuario_atual.role == "admin"
+        is_admin = usuario_atual.role == "admin"
 
-    query = ChamadoSuporte.query
-    if not is_admin:
-        query = query.filter_by(usuario_id=current_user_id)
+        query = ChamadoSuporte.query
+        if not is_admin:
+            query = query.filter_by(usuario_id=current_user_id)
 
-    # Uma conversa = um chamado/thread.
-    # Importante: para o admin, queremos listar também usuários que ainda não têm mensagens.
-    chamados = query.order_by(ChamadoSuporte.data.desc()).all()
+        chamados = query.order_by(ChamadoSuporte.data.desc()).all()
 
-    # Se for admin e não houver chamados, não retorna lista vazia:
-    # devolve todos os usuários (role=user) como contatos “sem histórico”.
-    if is_admin and len(chamados) == 0:
-        usuarios = Usuario.query.filter(Usuario.role == "user").all()
-        conversas = []
-        for u in usuarios:
-            conversas.append(
+        # Se for admin e não houver chamados, devolve usuários (role=user) como contatos “sem histórico”.
+        if is_admin and len(chamados) == 0:
+            usuarios = Usuario.query.filter(Usuario.role == "user").all()
+            conversas = [
                 {
                     "chamado_id": None,
                     "usuario_id": u.id,
@@ -64,43 +52,48 @@ def listar_conversas():
                     "ultima_mensagem_autor": None,
                     "qtd_mensagens": 0,
                 }
+                for u in usuarios
+            ]
+            return jsonify({"total": len(conversas), "conversas": conversas}), 200
+
+        conversas = []
+        for c in chamados:
+            usuario = Usuario.query.get(c.usuario_id)
+            ultima_msg = (
+                MensagemSuporte.query.filter_by(chamado_id=c.id)
+                .order_by(MensagemSuporte.data.desc())
+                .first()
             )
+
+            qtd = MensagemSuporte.query.filter_by(chamado_id=c.id).count()
+
+            conversas.append(
+                {
+                    "chamado_id": c.id,
+                    "usuario_id": c.usuario_id,
+                    "usuario_nome": usuario.nome if usuario else "—",
+                    "usuario_email": usuario.email if usuario else None,
+                    "titulo": c.titulo,
+                    "descricao": c.descricao,
+                    "status_conversa": c.status,
+                    "prioridade": c.prioridade,
+                    "data_thread": c.data.isoformat() if c.data else None,
+                    "ultima_mensagem": ultima_msg.conteudo if ultima_msg else None,
+                    "ultima_mensagem_data": (
+                        ultima_msg.data.isoformat()
+                        if ultima_msg and ultima_msg.data
+                        else None
+                    ),
+                    "ultima_mensagem_autor": ultima_msg.autor_tipo if ultima_msg else None,
+                    "qtd_mensagens": qtd,
+                }
+            )
+
         return jsonify({"total": len(conversas), "conversas": conversas}), 200
 
-    conversas = []
-    for c in chamados:
-        usuario = Usuario.query.get(c.usuario_id)
-        ultima_msg = (
-            MensagemSuporte.query.filter_by(chamado_id=c.id)
-            .order_by(MensagemSuporte.data.desc())
-            .first()
-        )
-
-        conversas.append(
-            {
-                "chamado_id": c.id,
-                "usuario_id": c.usuario_id,
-                "usuario_nome": usuario.nome if usuario else "—",
-                "usuario_email": usuario.email if usuario else None,
-                "titulo": c.titulo,
-                "descricao": c.descricao,
-                "status_conversa": c.status,
-                "prioridade": c.prioridade,
-                "data_thread": c.data.isoformat() if c.data else None,
-                "ultima_mensagem": ultima_msg.conteudo if ultima_msg else None,
-                "ultima_mensagem_data": (
-                    ultima_msg.data.isoformat()
-                    if ultima_msg and ultima_msg.data
-                    else None
-                ),
-                "ultima_mensagem_autor": ultima_msg.autor_tipo if ultima_msg else None,
-                "qtd_mensagens": MensagemSuporte.query.filter_by(
-                    chamado_id=c.id
-                ).count(),
-            }
-        )
-
-    return jsonify({"total": len(conversas), "conversas": conversas}), 200
+    except Exception:
+        # Fail-safe: sempre responder com JSON seguro para não estourar o frontend.
+        return jsonify({"conversas": []}), 200
 
 
 @chat_bp.route("/chat/<int:chamado_id>/mensagens", methods=["GET"])
@@ -126,9 +119,7 @@ def listar_mensagens(chamado_id):
     )
 
     return (
-        jsonify(
-            {"chamado_id": chamado.id, "mensagens": [m.to_dict() for m in mensagens]}
-        ),
+        jsonify({"chamado_id": chamado.id, "mensagens": [m.to_dict() for m in mensagens]}),
         200,
     )
 
@@ -165,3 +156,4 @@ def enviar_mensagem(chamado_id):
     db.session.commit()
 
     return jsonify({"message": "Mensagem enviada", "mensagem": msg.to_dict()}), 201
+

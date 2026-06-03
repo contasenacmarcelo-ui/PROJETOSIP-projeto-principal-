@@ -15,7 +15,182 @@ def _safe_iso(dt):
         return None
 
 
-@admin_bp.route("/admin/dashboard", methods=["GET"])
+def _ensure_seed_data():
+    """Seed idempotente para garantir dados mínimos para o admin/chat."""
+
+    # 1) Usuários
+    # Criamos 3 usuários admin/user com status/role coerentes.
+    seed_users = [
+        {
+            "nome": "Admin SIP",
+            "email": "admin_seed@example.com",
+            "telefone": "+55 11 90000-0001",
+            "status": "ativo",
+            "role": "admin",
+        },
+        {
+            "nome": "Cliente Seed 1",
+            "email": "cliente1_seed@example.com",
+            "telefone": "+55 11 90000-0002",
+            "status": "ativo",
+            "role": "user",
+        },
+        {
+            "nome": "Cliente Seed 2",
+            "email": "cliente2_seed@example.com",
+            "telefone": "+55 11 90000-0003",
+            "status": "ativo",
+            "role": "user",
+        },
+    ]
+
+    # Password fixa (compatível com set_senha)
+    senha = "senha123"
+
+    created_users = []
+    for u in seed_users:
+        existing = Usuario.query.filter(Usuario.email == u["email"]).first()
+        if existing:
+            created_users.append(existing)
+            continue
+
+        novo = Usuario(
+            nome=u["nome"],
+            email=u["email"],
+            telefone=u["telefone"],
+            status=u["status"],
+            email_verificado=True,
+            role=u["role"],
+        )
+        novo.set_senha(senha)
+        db.session.add(novo)
+        created_users.append(novo)
+
+    # flush para obter ids
+    db.session.flush()
+
+    # 2) Pedidos fictícios (3)
+    # Vincular ao primeiro cliente user.
+    users_by_role = {r["role"]: None for r in seed_users}
+    # Mapear por email pra garantir ids corretos
+    for su in seed_users:
+        uobj = Usuario.query.filter(Usuario.email == su["email"]).first()
+        if uobj:
+            users_by_role[su["role"]] = uobj
+
+    cliente_admin = next((x for x in created_users if x.role == "admin"), None)
+    cliente_user_1 = next((x for x in created_users if x.role == "user" and x.email == seed_users[1]["email"]), None)
+    cliente_user_2 = next((x for x in created_users if x.role == "user" and x.email == seed_users[2]["email"]), None)
+
+    # Se ainda não existirem no banco por query (por flush), fazemos fallback.
+    if not cliente_user_1:
+        cliente_user_1 = Usuario.query.filter(Usuario.email == seed_users[1]["email"]).first()
+    if not cliente_user_2:
+        cliente_user_2 = Usuario.query.filter(Usuario.email == seed_users[2]["email"]).first()
+
+    # Idempotência: verificar pedidos seed por descricao
+    seed_pedidos = [
+        {
+            "usuario": cliente_user_1,
+            "tipo_servico": "sistema",
+            "descricao": "Pedido seed 1 - sistema",
+            "status": "pendente",
+            "valor_estimado": 1200.0,
+        },
+        {
+            "usuario": cliente_user_1,
+            "tipo_servico": "website",
+            "descricao": "Pedido seed 2 - website",
+            "status": "em_andamento",
+            "valor_estimado": 3500.0,
+        },
+        {
+            "usuario": cliente_user_2,
+            "tipo_servico": "app",
+            "descricao": "Pedido seed 3 - app",
+            "status": "pendente",
+            "valor_estimado": 5200.0,
+        },
+    ]
+
+    for sp in seed_pedidos:
+        if not sp["usuario"]:
+            continue
+        exists_pedido = Pedido.query.filter(Pedido.descricao == sp["descricao"]).first()
+        if exists_pedido:
+            continue
+
+        novo_p = Pedido(
+            usuario_id=sp["usuario"].id,
+            tipo_servico=sp["tipo_servico"],
+            descricao=sp["descricao"],
+            status=sp["status"],
+            valor_estimado=sp["valor_estimado"],
+        )
+        db.session.add(novo_p)
+
+    # 3) Chamados/"mensagens" básicas (2)
+    seed_chamados = [
+        {
+            "usuario": cliente_user_1,
+            "titulo": "Suporte seed 1",
+            "descricao": "Mensagem inicial do suporte (seed 1).",
+            "categoria_classificada": "duvida",
+            "prioridade": "media",
+            "status": "aberto",
+            "autor_tipo": "user",
+            "conteudo_msg": "Olá! Preciso de ajuda com o sistema (seed).",
+        },
+        {
+            "usuario": cliente_user_2,
+            "titulo": "Suporte seed 2",
+            "descricao": "Mensagem inicial do suporte (seed 2).",
+            "categoria_classificada": "bug",
+            "prioridade": "alta",
+            "status": "aberto",
+            "autor_tipo": "user",
+            "conteudo_msg": "Minha aplicação está com erro. (seed) ",
+        },
+    ]
+
+    for sc in seed_chamados:
+        if not sc["usuario"]:
+            continue
+
+        exists_chamado = ChamadoSuporte.query.filter(ChamadoSuporte.titulo == sc["titulo"]).first()
+        chamado = exists_chamado
+        if not chamado:
+            chamado = ChamadoSuporte(
+                usuario_id=sc["usuario"].id,
+                titulo=sc["titulo"],
+                descricao=sc["descricao"],
+                categoria_classificada=sc["categoria_classificada"],
+                prioridade=sc["prioridade"],
+                status=sc["status"],
+            )
+            db.session.add(chamado)
+            db.session.flush()
+
+        # Seed de pelo menos 1 mensagem para o chamado
+        exists_msg = MensagemSuporte.query.filter(
+            MensagemSuporte.chamado_id == chamado.id,
+            MensagemSuporte.conteudo == sc["conteudo_msg"],
+        ).first()
+        if not exists_msg:
+            msg = MensagemSuporte(
+                chamado_id=chamado.id,
+                autor_tipo=sc["autor_tipo"],
+                autor_usuario_id=sc["usuario"].id,
+                conteudo=sc["conteudo_msg"],
+            )
+            db.session.add(msg)
+
+    db.session.commit()
+
+
+# ---- Rotas Admin ----
+
+@admin_bp.route("/dashboard", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_dashboard():
@@ -52,17 +227,12 @@ def get_dashboard():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-# OBS: run.py registra admin_bp com url_prefix='/api'.
-# Portanto estas rotas ficam em: /api/admin/clientes e /api/admin/suporte/mensagens.
-
 @admin_bp.route("/clientes", methods=["GET"])
 @require_admin()
 def get_clientes():
     try:
         usuarios = Usuario.query.filter_by(role="user").all()
 
-        # Garantia UX: se o banco estiver vazio (ou não houver usuários role='user'),
-        # cria pelo menos 5 usuários dummy para a tabela renderizar.
         if usuarios is None or len(usuarios) < 5:
             quantidade_para_criar = 5 - (len(usuarios) if usuarios else 0)
             quantidade_para_criar = max(0, quantidade_para_criar)
@@ -70,14 +240,14 @@ def get_clientes():
             for i in range(quantidade_para_criar):
                 idx = (len(usuarios) or 0) + i + 1
                 dummy = Usuario(
-                    nome=f'Cliente Dummy {idx}',
-                    email=f'dummy{idx}@example.com',
-                    telefone=f'+55 11 99999-000{idx}',
-                    status='ativo',
+                    nome=f"Cliente Dummy {idx}",
+                    email=f"dummy{idx}@example.com",
+                    telefone=f"+55 11 99999-000{idx}",
+                    status="ativo",
                     email_verificado=False,
-                    role='user'
+                    role="user",
                 )
-                dummy.set_senha('senha123')
+                dummy.set_senha("senha123")
                 db.session.add(dummy)
 
             db.session.commit()
@@ -97,12 +267,8 @@ def get_clientes():
                     "nome": usuario.nome,
                     "email": usuario.email,
                     "telefone": usuario.telefone,
-                    "data_cadastro": usuario.data_cadastro.isoformat()
-                    if usuario.data_cadastro
-                    else None,
-                    "data_ultimo_login": usuario.data_ultimo_login.isoformat()
-                    if usuario.data_ultimo_login
-                    else None,
+                    "data_cadastro": usuario.data_cadastro.isoformat() if usuario.data_cadastro else None,
+                    "data_ultimo_login": usuario.data_ultimo_login.isoformat() if usuario.data_ultimo_login else None,
                     "email_verificado": usuario.email_verificado,
                     "status": usuario.status,
                     "num_pedidos": len(pedidos),
@@ -120,7 +286,6 @@ def get_clientes():
     except Exception as e:
         import traceback
 
-        # fallback de segurança
         try:
             clientes = [
                 {
@@ -155,7 +320,7 @@ def get_clientes():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/admin/pedidos", methods=["GET"])
+@admin_bp.route("/pedidos", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_pedidos():
@@ -183,7 +348,6 @@ def get_pedidos():
     except Exception as e:
         import traceback
 
-        # fallback de segurança
         try:
             pedidos = Pedido.query.all()
             pedidos_data = [
@@ -212,11 +376,10 @@ def get_pedidos():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/admin/pedido/<int:pedido_id>", methods=["GET", "DELETE"])
+@admin_bp.route("/pedido/<int:pedido_id>", methods=["GET", "DELETE"])
 @jwt_required()
 @require_admin()
 def pedido_detail(pedido_id):
-    # DELETE (apagar pedido)
     if request.method == "DELETE":
         try:
             pedido = Pedido.query.get(pedido_id)
@@ -230,7 +393,6 @@ def pedido_detail(pedido_id):
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
 
-    # GET (detalhes)
     try:
         pedido = Pedido.query.get(pedido_id)
         if not pedido:
@@ -248,9 +410,7 @@ def pedido_detail(pedido_id):
                     "servico": pedido.tipo_servico,
                     "descricao": pedido.descricao,
                     "status": pedido.status,
-                    "valor_estimado": float(pedido.valor_estimado)
-                    if pedido.valor_estimado
-                    else None,
+                    "valor_estimado": float(pedido.valor_estimado) if pedido.valor_estimado else None,
                     "data_criacao": pedido.data_criacao.isoformat() if pedido.data_criacao else None,
                 }
             ),
@@ -260,7 +420,7 @@ def pedido_detail(pedido_id):
         return jsonify({"error": str(e)}), 500
 
 
-@admin_bp.route("/admin/pedido/<int:pedido_id>/status", methods=["PUT"])
+@admin_bp.route("/pedido/<int:pedido_id>/status", methods=["PUT"])
 @jwt_required()
 @require_admin()
 def update_pedido_status(pedido_id):
@@ -285,12 +445,12 @@ def update_pedido_status(pedido_id):
             ),
             200,
         )
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Falha ao atualizar status"}), 500
 
 
-@admin_bp.route("/admin/suporte/mensagens", methods=["GET"])
+@admin_bp.route("/suporte/mensagens", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_mensagens_suporte():
@@ -368,7 +528,7 @@ def get_mensagens_suporte():
         return jsonify({"error": error_msg, "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/admin/suporte/<int:chamado_id>/responder", methods=["POST"])
+@admin_bp.route("/suporte/<int:chamado_id>/responder", methods=["POST"])
 @jwt_required()
 @require_admin()
 def responder_chamado(chamado_id):
@@ -396,4 +556,16 @@ def responder_chamado(chamado_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+
+@admin_bp.route("/seed", methods=["GET"])
+@jwt_required()
+@require_admin()
+def seed():
+    try:
+        # Faz seed idempotente: não duplica se já existir.
+        _ensure_seed_data()
+        return jsonify({"status": "success", "message": "Banco de dados populado com sucesso"}), 200
+    except Exception as e:
+        return jsonify({"status": "failed", "error": str(e)}), 500
 

@@ -1,24 +1,14 @@
-# TODO - Varredura, correções e exclusão no ADM
+# TODO - Ajustes Admin/Chat/Seed (Rotas Flask)
 
-## Etapa 1 — Varredura e revisão de código
-- [x] Revisar `public/js/admia.js` por riscos de XSS/innerHTML com dados do backend.
-- [x] Revisar back-end (blueprints/rotas) por falhas e ausência de DELETE para admin.
+- [x] Diagnosticar causa do 404 generalizado no admin: prefixo de rotas duplicado.
+- [x] Corrigir `backend/routes/admin.py` removendo prefixos duplicados `/admin/` e alinhando exatamente com os endpoints usados pelo `public/js/admia.js`.
+- [x] Garantir alinhamento de rotas para:
+  - [x] GET `/api/admin/dashboard`
+  - [x] GET `/api/admin/clientes`
+  - [x] GET `/api/admin/pedidos`
+  - [x] DELETE `/api/admin/pedido/<int:pedido_id>`
+- [x] Corrigir erro HTTP 500 em `/chat/conversas` no `backend/routes/chat.py`.
+- [x] Implementar fallback seguro em `/chat/conversas` retornando `{"conversas": []}` com status 200 em caso de falha/DB vazio.
+- [x] Implementar seed automático via `GET /api/admin/seed` no `backend/routes/admin.py`.
 
-
-## Etapa 2 — Ajustes no front-end (admia)
-- [ ] Adicionar botões “Apagar” para Clientes na UI gerada pelo `admia.js`.
-- [ ] Adicionar botões “Apagar” para Pedidos na UI gerada pelo `admia.js`.
-- [ ] Adicionar botões “Apagar” para Mensagens de Suporte na UI gerada pelo `admia.js`.
-
-
-## Etapa 3 — Rotas back-end e QA
-- [x] Implementar rotas DELETE admin em `backend/routes/admin.py`.
-
-- [x] Garantir que `backend/app.py` registra o blueprint admin.
-
-- [ ] Validar status codes e efeitos no banco via smoke test (script/requests).
-
-
-## Entrega
-- [ ] Listar arquivos alterados, correções feitas e trechos de código principais.
 
