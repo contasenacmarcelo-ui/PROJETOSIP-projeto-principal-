@@ -230,7 +230,8 @@ async function carregarClientes() {
 }
 
 function exibirClientes(clientes) {
-    const tbody = document.querySelector('table tbody');
+    // Preferir o tbody correto da página (evita render vazio se houver outra tabela/DOM inesperado)
+    const tbody = document.getElementById('tabela-body') || document.querySelector('table tbody');
     if (!tbody) return;
 
     tbody.innerHTML = '';
