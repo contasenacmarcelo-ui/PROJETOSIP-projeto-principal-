@@ -22,7 +22,6 @@ try:
     from backend.routes.admin import admin_bp
     from backend.routes.chat import chat_bp
 
-
     from flask_cors import CORS
     from flask import send_from_directory, jsonify
     import os
@@ -37,47 +36,54 @@ try:
     print(" CORS e JWT configurados")
 
     # Registrar blueprints
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(usuarios_bp, url_prefix='/api')
-    app.register_blueprint(pedidos_bp, url_prefix='/api')
-    app.register_blueprint(orcamentos_bp, url_prefix='/api')
-    app.register_blueprint(suporte_bp, url_prefix='/api')
-    app.register_blueprint(contato_bp, url_prefix='/api')
-    app.register_blueprint(notificacoes_bp, url_prefix='/api')
-    app.register_blueprint(ml_bp, url_prefix='/api/ml')
-    app.register_blueprint(admin_bp, url_prefix='/api')
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(usuarios_bp, url_prefix="/api")
+    app.register_blueprint(pedidos_bp, url_prefix="/api")
+    app.register_blueprint(orcamentos_bp, url_prefix="/api")
+    app.register_blueprint(suporte_bp, url_prefix="/api")
+    app.register_blueprint(contato_bp, url_prefix="/api")
+    app.register_blueprint(notificacoes_bp, url_prefix="/api")
+    app.register_blueprint(ml_bp, url_prefix="/api/ml")
+    app.register_blueprint(admin_bp, url_prefix="/api/admin")
+
     app.register_blueprint(chat_bp)
     app.register_blueprint(ml_dashboard_bp)
 
     print(" Blueprints registrados")
 
-
-    @app.route('/')
+    @app.route("/")
     def index():
-        return send_from_directory(os.path.join(app.root_path, '..'), 'index.html')
+        return send_from_directory(os.path.join(app.root_path, ".."), "index.html")
 
     # Servir arquivos estáticos
-    @app.route('/public/<path:filename>')
+    @app.route("/public/<path:filename>")
     def serve_static(filename):
-        return send_from_directory(os.path.join(app.root_path, '..', 'public'), filename)
+        return send_from_directory(
+            os.path.join(app.root_path, "..", "public"), filename
+        )
 
     print(" Rotas configuradas")
 
     # Debug: listar rotas relacionadas ao chat para confirmar integração
     try:
-        chat_routes = [rule.rule for rule in app.url_map.iter_rules() if rule.rule.startswith('/chat/')]
+        chat_routes = [
+            rule.rule
+            for rule in app.url_map.iter_rules()
+            if rule.rule.startswith("/chat/")
+        ]
         print(f"[DEBUG] Rotas /chat/* registradas: {chat_routes}")
     except Exception as _e:
         print(f"[DEBUG] Falha ao listar rotas /chat/*: {_e}")
 
-    if __name__ == '__main__':
+    if __name__ == "__main__":
 
         print(" Iniciando servidor...")
-        debug = os.getenv('DEBUG', '0') == '1'
-        port = int(os.getenv('PORT', '5000'))
-        app.run(debug=debug, host='0.0.0.0', port=port)
+        debug = os.getenv("DEBUG", "0") == "1"
+        port = int(os.getenv("PORT", "5000"))
+        app.run(debug=debug, host="0.0.0.0", port=port)
 
 except Exception as e:
     print(f" Erro durante inicialização: {e}")
     import traceback
+
     traceback.print_exc()
