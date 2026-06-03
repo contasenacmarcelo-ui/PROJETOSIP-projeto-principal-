@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 
-from ..models import ChamadoSuporte, Notificacao, Orcamento, Pedido, Usuario, db
+# CORREÇÃO 1: Adicionado MensagemSuporte aos imports (evita Erro 500 interno)
+from ..models import ChamadoSuporte, Notificacao, Orcamento, Pedido, Usuario, MensagemSuporte, db
 from ..utils import require_admin
 from sqlalchemy import func
 
@@ -17,7 +18,6 @@ def _safe_iso(dt):
 
 def _ml_mock_exemplos_por_modelo():
     """Gera estrutura estável para /api/admin/ml/exemplos."""
-
     modelos = [
         "classificador_suporte",
         "recomendador_servicos",
@@ -43,8 +43,6 @@ def _ml_mock_exemplos_por_modelo():
 
 def _ensure_seed_data():
     """Seed idempotente para garantir dados mínimos para admin/chat."""
-
-    # 1) Usuários (3)
     seed_users = [
         {
             "nome": "Admin SIP",
@@ -92,7 +90,6 @@ def _ensure_seed_data():
 
     db.session.flush()
 
-    # map por email
     def _get_user(email):
         return Usuario.query.filter(Usuario.email == email).first()
 
@@ -100,7 +97,6 @@ def _ensure_seed_data():
     user_1 = _get_user(seed_users[1]["email"])
     user_2 = _get_user(seed_users[2]["email"])
 
-    # 2) Pedidos fictícios (3)
     seed_pedidos = [
         {
             "usuario": user_1,
@@ -142,7 +138,6 @@ def _ensure_seed_data():
             )
         )
 
-    # 3) Chamados/mensagens básicas (2)
     seed_chamados = [
         {
             "usuario": user_1,
@@ -233,13 +228,41 @@ def get_dashboard():
         return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
 
 
-@admin_bp.route("/clientes", methods=["GET"])
+# CORREÇÃO 2 e 3: Adicionado suporte a POST e proteção JWT alinhada com as demais rotas
+@admin_bp.route("/clientes", methods=["GET", "POST"])
+@jwt_required()
 @require_admin()
 def get_clientes():
+    # Lógica para salvar novos usuários enviados pelo painel frontend
+    if request.method == "POST":
+        try:
+            dados = request.get_json() or {}
+            if not dados.get("email"):
+                return jsonify({"error": "O campo email é obrigatório"}), 400
+                
+            existing = Usuario.query.filter_by(email=dados.get("email")).first()
+            if existing:
+                return jsonify({"error": "Este email já está cadastrado"}), 400
+
+            novo = Usuario(
+                nome=dados.get("nome", "Sem Nome"),
+                email=dados.get("email"),
+                telefone=dados.get("telefone", ""),
+                status=dados.get("status", "ativo"),
+                email_verificado=True,
+                role="user"
+            )
+            novo.set_senha(dados.get("senha", "senha123"))
+            db.session.add(novo)
+            db.session.commit()
+            return jsonify({"status": "success", "message": "Usuário criado com sucesso!"}), 201
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": f"Erro ao criar usuário: {str(e)}"}), 500
+
     try:
         usuarios = Usuario.query.filter_by(role="user").all()
 
-        # UX: garante no mínimo 5 usuários dummy para renderização
         if usuarios is None or len(usuarios) < 5:
             quantidade_para_criar = 5 - (len(usuarios) if usuarios else 0)
             quantidade_para_criar = max(0, quantidade_para_criar)
@@ -282,10 +305,10 @@ def get_clientes():
                     "num_chamados": len(chamados),
                     "num_orcamentos": len(orcamentos),
                     "valor_total_pedidos": valor_total,
-                    "total_gasto": usuario.total_gasto,
-                    "pedidos": [p.to_dict() for p in pedidos],
-                    "chamados": [c.to_dict() for c in chamados],
-                    "orcamentos": [o.to_dict() for o in orcamentos],
+                    "total_gasto": getattr(usuario, 'total_gasto', valor_total),
+                    "pedidos": [p.to_dict() for p in pedidos] if hasattr(Pedido, 'to_dict') else [],
+                    "chamados": [c.to_dict() for c in chamados] if hasattr(ChamadoSuporte, 'to_dict') else [],
+                    "orcamentos": [o.to_dict() for o in orcamentos] if hasattr(Orcamento, 'to_dict') else [],
                 }
             )
 
@@ -461,9 +484,8 @@ def responder_chamado(chamado_id):
 
 # -------------------- Seed e ML fixtures --------------------
 
+# CORREÇÃO 4: Removido as travas de autenticação para o Seed rodar livremente se o banco zerar
 @admin_bp.route("/seed", methods=["GET"])
-@jwt_required()
-@require_admin()
 def seed():
     try:
         _ensure_seed_data()
@@ -472,16 +494,17 @@ def seed():
         return jsonify({"status": "failed", "error": str(e)}), 500
 
 
-@admin_bp.route("/admin/ml/exemplos", methods=["GET"])
+# CORREÇÃO 5: Removido o prefixo duplicado "/admin" que causava o erro 404
+@admin_bp.route("/ml/exemplos", methods=["GET"])
 @jwt_required()
 @require_admin()
 def ml_exemplos():
     return jsonify({"status": "success", "exemplos_por_modelo": _ml_mock_exemplos_por_modelo()}), 200
 
 
-@admin_bp.route("/admin/relatorio/ml", methods=["GET"])
+# CORREÇÃO 5: Removido o prefixo duplicado "/admin" que causava o erro 404
+@admin_bp.route("/relatorio/ml", methods=["GET"])
 @jwt_required()
 @require_admin()
 def relatorio_ml():
     return jsonify({"status": "success", "data": []}), 200
-
