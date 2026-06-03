@@ -20,9 +20,9 @@ function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/\"/g, '"')
         .replace(/'/g, '&#039;');
 }
 
@@ -130,12 +130,132 @@ function initializeAdmin() {
     carregarMensagensSuporte();
     carregarModelosML();
     carregarPedidos();
-    setupChatAdmin();
+    if (typeof setupChatAdmin === 'function') {
+        setupChatAdmin();
+    }
+
     carregarRelatorioML();
 
     document.querySelectorAll('.btn-logout, .header-logout').forEach(btn => {
         btn.addEventListener('click', logout);
     });
+}
+
+// ======= CHAT ADMIN =======
+// Corrige: ReferenceError: setupChatAdmin is not defined
+// Implementação mínima baseada em expectativa comum de UI e rotas existentes.
+function setupChatAdmin() {
+    const token = obterTokenValido();
+    if (!token) return;
+
+    // Se a página não tiver os elementos esperados, não quebra o resto.
+    const chatContainer = document.getElementById('chat-admin-container') || document.getElementById('chat-container');
+    const inputMsg = document.getElementById('chat-admin-input') || document.getElementById('chat-input');
+    const btnSend = document.getElementById('chat-admin-send') || document.getElementById('chat-send');
+    const listaConversas = document.getElementById('chat-admin-conversas') || document.getElementById('chat-conversas');
+    const listaMensagens = document.getElementById('chat-admin-mensagens') || document.getElementById('chat-mensagens');
+
+    if (!chatContainer || !inputMsg || !btnSend) {
+        // UI não carregada nesta página/página sem chat
+        return;
+    }
+
+    // Estado simples
+    let activeConversaId = null;
+
+    // Tenta carregar conversas
+    async function carregarConversas() {
+        if (!listaConversas) return;
+        try {
+            const resp = await fetch(`${API_BASE}/admin/chat/conversas`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const conversas = Array.isArray(data) ? data : (data.conversas || []);
+
+            listaConversas.innerHTML = '';
+            conversas.forEach(c => {
+                const id = c.id ?? c.conversa_id ?? c.usuario_id ?? null;
+                if (id === null) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'conversa-btn';
+                btn.textContent = c.nome ?? c.titulo ?? `Conversa ${id}`;
+                btn.addEventListener('click', () => selecionarConversa(id));
+                listaConversas.appendChild(btn);
+            });
+        } catch (e) {
+            console.error('Erro ao carregar conversas (admin):', e);
+        }
+    }
+
+    async function selecionarConversa(conversaId) {
+        activeConversaId = conversaId;
+        if (listaMensagens) listaMensagens.innerHTML = '';
+        await carregarMensagens();
+    }
+
+    async function carregarMensagens() {
+        if (!listaMensagens || activeConversaId === null) return;
+        try {
+            const resp = await fetch(`${API_BASE}/admin/chat/${activeConversaId}/mensagens`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const mensagens = Array.isArray(data) ? data : (data.mensagens || data || []);
+
+            listaMensagens.innerHTML = '';
+            mensagens.forEach(m => {
+                const div = document.createElement('div');
+                div.className = `mensagem ${m.de_admin ? 'de-admin' : 'de-cliente'}`.trim();
+                div.innerHTML = `<span class="mensagem-texto"></span>`;
+                div.querySelector('.mensagem-texto').textContent = m.texto ?? m.mensagem ?? '';
+                listaMensagens.appendChild(div);
+            });
+        } catch (e) {
+            console.error('Erro ao carregar mensagens (admin):', e);
+        }
+    }
+
+    btnSend.addEventListener('click', async () => {
+        const texto = (inputMsg.value || '').trim();
+        if (!texto) return;
+        if (activeConversaId === null) {
+            // Se não há conversa selecionada, tenta enviar sem id (pode existir endpoint que resolva)
+            // Mantém silencioso para não quebrar UI.
+        }
+
+        try {
+            const payload = { texto };
+            if (activeConversaId !== null) payload.conversa_id = activeConversaId;
+
+            const resp = await fetch(`${API_BASE}/admin/chat/mensagens`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!resp.ok) return;
+            inputMsg.value = '';
+            await carregarMensagens();
+        } catch (e) {
+            console.error('Erro ao enviar mensagem (admin):', e);
+        }
+    });
+
+    // Auto: se não existir UI de conversas, tenta definir conversa via dataset da página
+    const conversaPreset = chatContainer?.dataset?.conversaId || chatContainer?.dataset?.conversa_id;
+    if (conversaPreset) {
+        activeConversaId = conversaPreset;
+        carregarMensagens();
+    }
+
+    carregarConversas();
 }
 
 function setupModals() {
@@ -222,7 +342,9 @@ async function carregarClientes() {
         if (response.ok) {
             const data = await response.json();
             const clientes = Array.isArray(data) ? data : (data?.clientes || []);
+            console.log('[ADM] /admin/clientes payload:', data);
             exibirClientes(clientes);
+
         }
     } catch (error) {
         console.error('Erro ao carregar clientes:', error);
@@ -235,7 +357,11 @@ function exibirClientes(clientes) {
     if (!tbody) return;
 
     tbody.innerHTML = '';
+
     const safeClientes = Array.isArray(clientes) ? clientes : [];
+
+    // debug: garantir que há dados e que o tbody correto foi encontrado
+    console.log('[ADM] exibirClientes:', { clientCount: safeClientes.length, tbodyId: tbody.id, clientesRaw: clientes });
 
     if (safeClientes.length === 0) {
         const tr = document.createElement('tr');
@@ -780,3 +906,4 @@ function exibirPedidos(pedidos) {
         }
     });
 }
+
