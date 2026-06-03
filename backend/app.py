@@ -16,8 +16,6 @@ from .routes.ml_dashboard import ml_bp as ml_dashboard_bp
 from .routes.chat import chat_bp
 import os
 
-
-
 app = create_app()
 CORS(app)
 jwt.init_app(app)
@@ -31,7 +29,10 @@ app.register_blueprint(suporte_bp, url_prefix='/api')
 app.register_blueprint(contato_bp, url_prefix='/api')
 app.register_blueprint(notificacoes_bp, url_prefix='/api')
 app.register_blueprint(ml_bp, url_prefix='/api/ml')
-app.register_blueprint(admin_bp, url_prefix='/api')
+
+# CORREÇÃO: Alterado de '/api' para '/api/admin' para alinhar com as chamadas do frontend
+app.register_blueprint(admin_bp, url_prefix='/api/admin')
+
 app.register_blueprint(ml_batch_bp, url_prefix='/api')
 app.register_blueprint(ml_dashboard_bp)
 app.register_blueprint(chat_bp)
