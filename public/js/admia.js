@@ -1,14 +1,28 @@
 let usuarioAtual = null;
 
+// Função auxiliar centralizada para capturar o token de qualquer lugar possível
+function obterTokenValido() {
+    let token = typeof getToken === 'function' ? getToken() : null;
+    if (!token) token = localStorage.getItem('access_token');
+    if (!token) token = localStorage.getItem('token');
+    if (!token) {
+        try {
+            const logged = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+            token = logged?.access_token || logged?.token;
+        } catch (e) {
+            token = null;
+        }
+    }
+    return token;
+}
 
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
         .replace(/&/g, '&amp;')
-        .replace(/</g, '<')
-        .replace(/>/g, '>')
-        .replace(/"/g, '\"')
-
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
 
@@ -22,14 +36,11 @@ function setModalMensagens(titulo, mensagemHtml, tipo = 'info') {
     tituloElem.textContent = titulo || 'Mensagem';
 
     if (mensagemHtml && typeof mensagemHtml === 'string') {
-        // Segurança: não inserir HTML vindo de backend/entrada sem sanitização.
-        // Mantém compatibilidade: se html=true foi usado no próprio código, ainda funciona por texto.
         corpoElem.textContent = mensagemHtml;
     } else {
         corpoElem.textContent = '—';
     }
 
-    // (Opcional) ajustar classe por tipo no futuro.
     modal.dataset.tipo = tipo;
     modal.style.display = 'block';
 }
@@ -40,10 +51,9 @@ window.fecharModalMensagem = function () {
 };
 
 window.mostrarModalMensagem = function ({ titulo, mensagem, tipo = 'info', html = false } = {}) {
-    // Se html=false, tratamos como texto e convertimos \n em <br>
     let mensagemHtml;
     if (html) {
-        mensagemHtml = mensagem || '—';
+        mensagemHtml = message || '—';
     } else {
         mensagemHtml = escapeHtml(mensagem || '—').replace(/\n/g, '<br>');
     }
@@ -58,48 +68,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-
 // Verificar se é admin
 async function verificarAutenticacao() {
-    // Reforça a busca do token (às vezes pode estar em outra chave do localStorage)
-    let token = getToken();
-    if (!token) {
-        token = localStorage.getItem('access_token');
-    }
-    if (!token) {
-        try {
-            const logged = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
-            token = logged?.access_token;
-        } catch (e) {
-            token = null;
-        }
-    }
+    const token = obterTokenValido();
 
     if (!token) {
         window.location.href = '/public/pages/login.html';
         return;
     }
 
-
     try {
-        // Não usar contentType:false aqui (não afeta o Authorization, mas pode atrapalhar o fluxo)
-        const response = await apiFetch('/auth/me');
-
+        // Garante o envio do token no cabeçalho de verificação
+        const response = await fetch(`${API_BASE}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
 
         if (response.ok) {
             usuarioAtual = await response.json();
             if (usuarioAtual.role !== 'admin') {
-            mostrarModalMensagem({
-                titulo: 'Acesso negado',
-                mensagem: 'Apenas administradores podem acessar este painel.',
-                tipo: 'erro'
-            });
-                // Não redirecionar para a página de login durante o mesmo fluxo de carregamento
-
-                // (evita loop/reload quando token é setado/recuperado pelo navegador)
+                mostrarModalMensagem({
+                    titulo: 'Acesso negado',
+                    mensagem: 'Apenas administradores podem acessar este painel.',
+                    tipo: 'erro'
+                });
                 return;
             }
-
 
             const adminNome = document.getElementById('admin-nome');
             if (adminNome) {
@@ -107,6 +103,7 @@ async function verificarAutenticacao() {
             }
         } else {
             localStorage.removeItem('access_token');
+            localStorage.removeItem('token');
             window.location.href = '/public/pages/login.html';
         }
     } catch (error) {
@@ -116,7 +113,6 @@ async function verificarAutenticacao() {
 }
 
 function initializeAdmin() {
-    // Menu mobile
     const btn = document.getElementById("btn-menu");
     const menu = document.getElementById("menu-mobile");
 
@@ -127,21 +123,16 @@ function initializeAdmin() {
         });
     }
 
-    // Modais
     setupModals();
 
-    // Carregar dados
     carregarDashboard();
     carregarClientes();
     carregarMensagensSuporte();
     carregarModelosML();
     carregarPedidos();
     setupChatAdmin();
-
-    // Carregar relatórios/insights de ML (dados do banco)
     carregarRelatorioML();
 
-    // Evento do botão de logout
     document.querySelectorAll('.btn-logout, .header-logout').forEach(btn => {
         btn.addEventListener('click', logout);
     });
@@ -186,9 +177,13 @@ function setupModals() {
 
 // Carregar dashboard com estatísticas
 async function carregarDashboard() {
+    const token = obterTokenValido();
     try {
         const response = await fetch(`${API_BASE}/admin/dashboard`, {
-            headers: apiHeaders(true)
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
 
         if (response.ok) {
@@ -200,9 +195,7 @@ async function carregarDashboard() {
     }
 }
 
-// Atualizar elementos do dashboard
 function atualizarDashboard(data) {
-    // Atualizar cards
     const updateElement = (id, value) => {
         const elem = document.getElementById(id);
         if (elem) elem.textContent = value;
@@ -212,21 +205,22 @@ function atualizarDashboard(data) {
     updateElement('total-pedidos', data.total_pedidos);
     updateElement('total-orcamentos', data.total_orcamentos);
     updateElement('total-chamados', data.total_chamados);
-    updateElement('receita-total', `R$ ${data.receita_total.toFixed(2).replace('.', ',')}`);
+    updateElement('receita-total', `R$ ${(data.receita_total || 0).toFixed(2).replace('.', ',')}`);
 }
 
 // Carregar lista de clientes
 async function carregarClientes() {
+    const token = obterTokenValido();
     try {
-        // Endpoint correto do backend (admin clientes)
         const response = await fetch(`${API_BASE}/admin/clientes`, {
-            headers: apiHeaders(true)
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
-
 
         if (response.ok) {
             const data = await response.json();
-            // Compatibilidade: endpoint pode retornar { clientes: [...] } ou array direto.
             const clientes = Array.isArray(data) ? data : (data?.clientes || []);
             exibirClientes(clientes);
         }
@@ -235,13 +229,11 @@ async function carregarClientes() {
     }
 }
 
-// Exibir clientes na tabela
 function exibirClientes(clientes) {
     const tbody = document.querySelector('table tbody');
     if (!tbody) return;
 
     tbody.innerHTML = '';
-
     const safeClientes = Array.isArray(clientes) ? clientes : [];
 
     if (safeClientes.length === 0) {
@@ -251,7 +243,6 @@ function exibirClientes(clientes) {
         return;
     }
 
-    // Loop resiliente: um cliente quebrado não impede renderização dos demais.
     safeClientes.forEach((cliente) => {
         try {
             const row = document.createElement('tr');
@@ -275,7 +266,6 @@ function exibirClientes(clientes) {
                 })()
                 : 'Nunca';
 
-            // fallback: email_verificado pode vir boolean ou texto
             const emailVerificado = cliente?.email_verificado === true || cliente?.email_verificado === 'true' || cliente?.email_verificado === 1 || cliente?.email_verificado === '1'
                 ? 'Sim'
                 : 'Não';
@@ -317,7 +307,7 @@ function exibirClientes(clientes) {
             row.appendChild(tdBtn);
             tbody.appendChild(row);
         } catch (err) {
-            console.error('Erro ao renderizar cliente (mantendo os demais):', err, cliente);
+            console.error('Erro ao renderizar cliente:', err, cliente);
         }
     });
 }
@@ -325,14 +315,14 @@ function exibirClientes(clientes) {
 async function apagarCliente(clienteId) {
     if (!confirm('Tem certeza que deseja apagar este cliente? Esta ação não pode ser desfeita.')) return;
 
-    try {
-        const token = getToken();
-        if (!token) {
-            mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
-            window.location.href = '/public/pages/login.html';
-            return;
-        }
+    const token = obterTokenValido();
+    if (!token) {
+        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
+        window.location.href = '/public/pages/login.html';
+        return;
+    }
 
+    try {
         const resp = await fetch(`${API_BASE}/admin/cliente/${clienteId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
@@ -355,11 +345,14 @@ async function apagarCliente(clienteId) {
     }
 }
 
-// Ver detalhes do cliente
 async function verDetalhes(clienteId) {
+    const token = obterTokenValido();
     try {
         const response = await fetch(`${API_BASE}/admin/cliente/${clienteId}`, {
-            headers: apiHeaders(true)
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
         });
 
         if (response.ok) {
@@ -370,15 +363,12 @@ async function verDetalhes(clienteId) {
         console.error('Erro ao carregar detalhes:', error);
         mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao carregar detalhes do cliente.', tipo: 'erro' });
     }
-
 }
 
-// Exibir modal com detalhes do cliente
 function exibirModalDetalhes(data) {
     const modal = document.getElementById('modal-detalhes');
     if (!modal) return;
 
-    // Dados pessoais
     const updateElement = (id, value) => {
         const elem = document.getElementById(id);
         if (elem) elem.textContent = value;
@@ -389,35 +379,15 @@ function exibirModalDetalhes(data) {
     updateElement('det-telefone', data.usuario.telefone || '—');
     updateElement('det-status', data.usuario.status);
 
-    // Pedidos
-    const pedidosHTML = data.pedidos.length > 0
-        ? data.pedidos.map(p => `
-            <div style="padding:10px;border-bottom:1px solid #eee;">
-                <strong>${p.tipo_servico}</strong> - <span style="color:#666;">${p.status}</span>
-                <br><small>R$ ${p.valor_estimado || 0} | ${new Date(p.data_criacao).toLocaleDateString('pt-BR')}</small>
-            </div>
-        `).join('')
-        : '<p style="color:#999;">Nenhum pedido</p>';
     const detPedidos = document.getElementById('det-pedidos');
     if (detPedidos) {
-        // Segurança: não inserir HTML com dados do backend
         detPedidos.textContent = (data.pedidos || []).length > 0
             ? `(${data.pedidos.length}) pedidos carregados.`
             : 'Nenhum pedido';
     }
 
-    // Chamados de suporte
-    const suportesHTML = data.chamados.length > 0
-        ? data.chamados.map(c => `
-            <div style="padding:10px;border-bottom:1px solid #eee;">
-                <strong>${c.titulo}</strong> - <span style="color:#666;">${c.status}</span>
-                <br><small>Prioridade: ${c.prioridade}</small>
-            </div>
-        `).join('')
-        : '<p style="color:#999;">Nenhum chamado</p>';
     const detSuportes = document.getElementById('det-suportes');
     if (detSuportes) {
-        // Segurança: não inserir HTML com dados do backend
         const nChamados = (data.chamados || []).length;
         const taxa = data?.resumo?.taxa_conclusao ?? 0;
         const valorTotal = data?.resumo?.valor_total ?? 0;
@@ -425,42 +395,31 @@ function exibirModalDetalhes(data) {
 
         detSuportes.textContent = nChamados > 0
             ? `(${nChamados}) chamados carregados. ML Insights: conclusão ${taxa}%, valor total R$ ${Number(valorTotal).toFixed(2)}, tickets abertos ${ticketsAbertos}.`
-            : 'Nenhum chamado'
-        ;
-
-        // Mantém sem alterar estrutura visual crítica; se desejar UI rica, faça via sanitização depois.
-
+            : 'Nenhum chamado';
     }
 
     modal.style.display = 'block';
     window.abrirModalDetalhes();
 }
 
-// Carregar relatório de ML
 async function carregarRelatorioML() {
+    const token = obterTokenValido();
     try {
-        // Preferência: exemplos (seed) do endpoint novo. Fallback: relatório agregado.
-        // Compatibilidade: no projeto atual o ML dashboard expõe dados em /api/ml-executivo/dados.
-        // Mantemos fallback para os endpoints antigos se existirem.
         let response = await fetch(`${API_BASE}/admin/ml/exemplos`, {
-            headers: apiHeaders(false)
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (!response.ok) {
             response = await fetch(`${API_BASE}/admin/relatorio/ml`, {
-                headers: apiHeaders(false)
+                headers: { 'Authorization': `Bearer ${token}` }
             });
         }
 
         if (!response.ok) {
             response = await fetch(`${API_BASE}/ml-executivo/dados`, {
-                headers: apiHeaders(true)
+                headers: { 'Authorization': `Bearer ${token}` }
             });
         }
-
-
-
-
 
         if (response.ok) {
             const data = await response.json();
@@ -471,12 +430,8 @@ async function carregarRelatorioML() {
     }
 }
 
-// Exibir relatório de ML
 function exibirRelatorioML(data) {
     const container = document.getElementById('ml-container') || document.body;
-
-    // Segurança: remove qualquer renderização HTML com dados do backend.
-    // Mantém compatibilidade exibindo texto formatado.
     const safePayload = {
         classificador_suporte: data.classificador_suporte,
         recomendador_servicos: data.recomendador_servicos,
@@ -488,37 +443,27 @@ function exibirRelatorioML(data) {
     }
 }
 
-
-// Adicionar usuário
 window.adicionarUsuario = async function () {
     const nome = document.getElementById('nome').value;
     const email = document.getElementById('email').value;
     const telefone = document.getElementById('telefone').value;
 
     if (!nome || !email) {
-        mostrarModalMensagem({ titulo: 'Campos obrigatórios', mensagem: 'Nome e e-mail são obrigatórios para adicionar um usuário.', tipo: 'aviso' });
+        mostrarModalMensagem({ titulo: 'Campos obrigatórios', mensagem: 'Nome e e-mail são obrigatórios.', tipo: 'aviso' });
         return;
     }
-
 
     try {
         const response = await fetch(`${API_BASE}/auth/cadastro`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                nome,
-                email,
-                telefone,
-                senha: 'senha123'
-            })
+            body: JSON.stringify({ nome, email, telefone, senha: 'senha123' })
         });
 
         if (response.ok) {
             mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Usuário adicionado com sucesso!', tipo: 'sucesso' });
             window.fecharModal();
             carregarClientes();
-            // Limpar campos
-
             document.getElementById('nome').value = '';
             document.getElementById('email').value = '';
             document.getElementById('telefone').value = '';
@@ -526,19 +471,17 @@ window.adicionarUsuario = async function () {
             const error = await response.json();
             mostrarModalMensagem({ titulo: 'Erro', mensagem: error.error || 'Erro ao adicionar usuário.', tipo: 'erro' });
         }
-
     } catch (error) {
         console.error('Erro:', error);
-        mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao adicionar usuário.', tipo: 'erro' });
+        mostrarModalMensagem({ titulo: 'Erro', message: 'Erro ao adicionar usuário.', tipo: 'erro' });
     }
+};
 
-}
-
-// Carregar mensagens de suporte
 async function carregarMensagensSuporte() {
+    const token = obterTokenValido();
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/mensagens`, {
-            headers: apiHeaders(false)
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.ok) {
@@ -550,14 +493,12 @@ async function carregarMensagensSuporte() {
     }
 }
 
-// Exibir mensagens de suporte
 function exibirMensagensSuporte(mensagens) {
     const container = document.getElementById('suporte-container');
     if (!container) return;
 
     container.innerHTML = '';
-
-    if (mensagens.length === 0) {
+    if (!mensagens || mensagens.length === 0) {
         container.innerHTML = '<p style="text-align:center;padding:20px;color:#999;">Nenhuma mensagem de suporte</p>';
         return;
     }
@@ -565,8 +506,7 @@ function exibirMensagensSuporte(mensagens) {
     mensagens.forEach(msg => {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'mensagem-suporte';
-        // Segurança: evita XSS removendo innerHTML com dados vindos do backend.
-        msgDiv.innerHTML = '';
+        
         const header = document.createElement('div');
         header.className = 'mensagem-header';
         header.innerHTML = `<strong></strong> (<span></span>)<span class="status"></span>`;
@@ -586,11 +526,13 @@ function exibirMensagensSuporte(mensagens) {
 
         const acoes = document.createElement('div');
         acoes.className = 'mensagem-acoes';
+        
         const btnResp = document.createElement('button');
         btnResp.className = 'btn-responder';
         btnResp.type = 'button';
         btnResp.setAttribute('onclick', `responderMensagem(${msg.id})`);
         btnResp.textContent = 'Responder';
+        
         const btnRes = document.createElement('button');
         btnRes.className = 'btn-resolver';
         btnRes.type = 'button';
@@ -601,16 +543,14 @@ function exibirMensagensSuporte(mensagens) {
         btnApagar.className = 'btn-apagar';
         btnApagar.type = 'button';
         const chamadoId = (msg && (msg.chamado_id ?? msg.id)) != null ? (msg.chamado_id ?? msg.id) : null;
-        if (chamadoId === null) {
-            // Não renderiza botão caso não tenha ID para deletar
-        } else {
+        if (chamadoId !== null) {
             btnApagar.setAttribute('onclick', `apagarChamadoSuporte(${chamadoId})`);
             btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
         }
 
         acoes.appendChild(btnResp);
         acoes.appendChild(btnRes);
-        acoes.appendChild(btnApagar);
+        if (chamadoId !== null) acoes.appendChild(btnApagar);
 
         msgDiv.appendChild(header);
         msgDiv.appendChild(titulo);
@@ -620,19 +560,16 @@ function exibirMensagensSuporte(mensagens) {
     });
 }
 
-// Responder mensagem
 async function responderMensagem(chamadoId) {
     const resposta = prompt('Digite sua resposta:');
     if (!resposta) return;
 
-    const token = getToken();
-
+    const token = obterTokenValido();
     if (!token) {
-        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
+        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente.', tipo: 'erro' });
         window.location.href = '/public/pages/login.html';
         return;
     }
-
 
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}/responder`, {
@@ -641,10 +578,7 @@ async function responderMensagem(chamadoId) {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                resposta: resposta,
-                status: 'em_andamento'
-            })
+            body: JSON.stringify({ resposta: resposta, status: 'em_andamento' })
         });
 
         if (response.ok) {
@@ -653,23 +587,19 @@ async function responderMensagem(chamadoId) {
         } else {
             mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao enviar resposta.', tipo: 'erro' });
         }
-
     } catch (error) {
         console.error('Erro:', error);
         mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao enviar resposta.', tipo: 'erro' });
     }
-
 }
 
-// Marcar como resolvido
 async function marcarResolvido(chamadoId) {
-    const token = getToken();
+    const token = obterTokenValido();
     if (!token) {
-        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
+        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente.', tipo: 'erro' });
         window.location.href = '/public/pages/login.html';
         return;
     }
-
 
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}/responder`, {
@@ -678,10 +608,7 @@ async function marcarResolvido(chamadoId) {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                resposta: 'Chamado marcado como resolvido.',
-                status: 'fechado'
-            })
+            body: JSON.stringify({ resposta: 'Chamado marcado como resolvido.', status: 'fechado' })
         });
 
         if (response.ok) {
@@ -690,20 +617,18 @@ async function marcarResolvido(chamadoId) {
         } else {
             mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao marcar como resolvido.', tipo: 'erro' });
         }
-
     } catch (error) {
         console.error('Erro:', error);
         mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Erro ao marcar como resolvido.', tipo: 'erro' });
     }
-
 }
 
 async function apagarChamadoSuporte(chamadoId) {
-    if (!confirm('Tem certeza que deseja apagar esta mensagem/chamado de suporte? Esta ação não pode ser desfeita.')) return;
+    if (!confirm('Tem certeza que deseja apagar esta mensagem?')) return;
 
-    const token = getToken();
+    const token = obterTokenValido();
     if (!token) {
-        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
+        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente.', tipo: 'erro' });
         window.location.href = '/public/pages/login.html';
         return;
     }
@@ -711,20 +636,15 @@ async function apagarChamadoSuporte(chamadoId) {
     try {
         const response = await fetch(`${API_BASE}/admin/suporte/${chamadoId}`, {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        const txt = await response.text().catch(() => '');
-        let data = null;
-        try { data = txt ? JSON.parse(txt) : null; } catch { data = null; }
 
         if (response.ok) {
             mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Chamado apagado com sucesso.', tipo: 'sucesso' });
             carregarMensagensSuporte();
         } else {
-            mostrarModalMensagem({ titulo: 'Erro', mensagem: data?.error || txt || 'Erro ao apagar chamado.', tipo: 'erro' });
+            const txt = await response.text().catch(() => '');
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: txt || 'Erro ao apagar chamado.', tipo: 'erro' });
         }
     } catch (error) {
         console.error('Erro:', error);
@@ -732,43 +652,19 @@ async function apagarChamadoSuporte(chamadoId) {
     }
 }
 
-
-// Carregar modelos de Machine Learning
 async function carregarModelosML() {
     const modelos = [
-
-        {
-            nome: 'Classificador de Suporte',
-            funcao: 'Classifica chamados de suporte por categoria e urgência',
-            arquivo: 'classificador_suporte.py'
-        },
-        {
-            nome: 'Clustering de Clientes',
-            funcao: 'Agrupa clientes por comportamento e preferências',
-            arquivo: 'clustering_clientes.py'
-        },
-        {
-            nome: 'Estimador de Orçamento',
-            funcao: 'Prevê custos de projetos baseado em histórico',
-            arquivo: 'estimador_orcamento.py'
-        },
-        {
-            nome: 'Extrator de Tags',
-            funcao: 'Identifica tags relevantes em descrições de projetos',
-            arquivo: 'extrator_tags.py'
-        },
-        {
-            nome: 'Recomendador de Serviços',
-            funcao: 'Sugere serviços baseado no perfil do cliente',
-            arquivo: 'recomendador_servicos.py'
-        }
+        { nome: 'Classificador de Suporte', funcao: 'Classifica chamados de suporte por categoria e urgência', arquivo: 'classificador_suporte.py' },
+        { nome: 'Clustering de Clientes', funcao: 'Agrupa clientes por comportamento e preferências', arquivo: 'clustering_clientes.py' },
+        { nome: 'Estimador de Orçamento', funcao: 'Prevê custos de projetos baseado em histórico', arquivo: 'estimador_orcamento.py' },
+        { nome: 'Extrator de Tags', funcao: 'Identifica tags relevantes em descrições de projetos', arquivo: 'extrator_tags.py' },
+        { nome: 'Recomendador de Serviços', funcao: 'Sugere serviços baseado no perfil do cliente', arquivo: 'recomendador_servicos.py' }
     ];
 
     const container = document.getElementById('ml-container');
     if (!container) return;
 
     container.innerHTML = '';
-
     modelos.forEach(modelo => {
         const card = document.createElement('div');
         card.className = 'ml-card';
@@ -784,44 +680,33 @@ async function carregarModelosML() {
     });
 }
 
-// Carregar todos os pedidos
 async function carregarPedidos() {
+    const token = obterTokenValido();
     try {
         const response = await fetch(`${API_BASE}/admin/pedidos`, {
-            headers: apiHeaders(false)
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (response.status === 401) {
-            // Falha de auth pode impedir renderização completa do painel
-            mostrarModalMensagem({
-                titulo: 'Acesso negado',
-                mensagem: 'Sessão expirada ou sem permissão de admin. Faça login novamente.',
-                tipo: 'erro'
-            });
+            mostrarModalMensagem({ titulo: 'Acesso negado', mensagem: 'Sessão expirada. Faça login novamente.', tipo: 'erro' });
             window.location.href = '/public/pages/login.html';
             return;
         }
 
-
         if (response.ok) {
             const data = await response.json();
             exibirPedidos(data.pedidos);
-        } else {
-            const txt = await response.text().catch(() => '');
-            console.error('Erro ao carregar pedidos:', response.status, txt);
         }
     } catch (error) {
         console.error('Erro ao carregar pedidos:', error);
     }
 }
 
-// Exibir pedidos
 function exibirPedidos(pedidos) {
     const container = document.getElementById('pedidos-container');
     if (!container) return;
 
     container.innerHTML = '';
-
     const safePedidos = Array.isArray(pedidos) ? pedidos : [];
 
     if (safePedidos.length === 0) {
@@ -837,7 +722,6 @@ function exibirPedidos(pedidos) {
             const dataCriacao = pedido?.data_criacao ? new Date(pedido.data_criacao).toLocaleDateString('pt-BR') : '—';
             const statusClass = (pedido?.status || '').toLowerCase().replace(' ', '-');
 
-            // header
             const header = document.createElement('div');
             header.className = 'pedido-header';
 
@@ -851,15 +735,11 @@ function exibirPedidos(pedidos) {
             header.appendChild(h3);
             header.appendChild(statusSpan);
 
-            // info
             const info = document.createElement('div');
             info.className = 'pedido-info';
 
             const pCliente = document.createElement('p');
             pCliente.innerHTML = '<strong>Cliente:</strong> ';
-
-            // Campo robusto para casos em que o backend retorne cliente nulo ou chaves ausentes.
-            // Suporta tanto formato atual (usuario_nome/usuario_email) quanto eventual pedido.cliente.
             const clienteObj = pedido?.cliente || null;
             const clienteNome = clienteObj?.nome ?? pedido?.usuario_nome ?? 'Não Informado';
             const clienteEmail = clienteObj?.email ?? pedido?.usuario_email ?? '';
@@ -891,840 +771,11 @@ function exibirPedidos(pedidos) {
             info.appendChild(pValor);
             info.appendChild(pData);
 
-            // actions
-            const acoes = document.createElement('div');
-            acoes.className = 'pedido-acoes';
-
-            const pid = pedido?.id;
-
-            const btnDetalhes = document.createElement('button');
-            btnDetalhes.className = 'btn-detalhes';
-            btnDetalhes.type = 'button';
-            btnDetalhes.setAttribute('onclick', `verDetalhesPedido(${pid})`);
-            btnDetalhes.innerHTML = '<i class="bi bi-eye"></i> Ver Detalhes';
-
-            const btnIniciar = document.createElement('button');
-            btnIniciar.className = 'btn-status';
-            btnIniciar.type = 'button';
-            btnIniciar.setAttribute('onclick', `atualizarStatusPedido(${pid}, 'em_andamento')`);
-            btnIniciar.innerHTML = '<i class="bi bi-play"></i> Iniciar';
-
-            const btnConcluir = document.createElement('button');
-            btnConcluir.className = 'btn-status';
-            btnConcluir.type = 'button';
-            btnConcluir.setAttribute('onclick', `atualizarStatusPedido(${pid}, 'concluido')`);
-            btnConcluir.innerHTML = '<i class="bi bi-check-circle"></i> Concluir';
-
-            const btnApagar = document.createElement('button');
-            btnApagar.className = 'btn-apagar';
-            btnApagar.type = 'button';
-            btnApagar.setAttribute('onclick', `apagarPedido(${pid})`);
-            btnApagar.innerHTML = '<i class="bi bi-trash"></i> Apagar';
-
-            acoes.appendChild(btnDetalhes);
-            acoes.appendChild(btnIniciar);
-            acoes.appendChild(btnConcluir);
-            acoes.appendChild(btnApagar);
-
             card.appendChild(header);
             card.appendChild(info);
-            card.appendChild(acoes);
-
             container.appendChild(card);
-        } catch (err) {
-            console.error('Erro ao renderizar pedido (mantendo os demais):', err, pedido);
+        } catch (e) {
+            console.error(e);
         }
     });
 }
-
-
-async function apagarPedido(pedidoId) {
-    if (!confirm('Tem certeza que deseja apagar este pedido? Esta ação não pode ser desfeita.')) return;
-
-    try {
-        const token = getToken();
-        if (!token) {
-            mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
-            window.location.href = '/public/pages/login.html';
-            return;
-        }
-
-        const response = await fetch(`${API_BASE}/admin/pedido/${pedidoId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        const txt = await response.text().catch(() => '');
-        let data = null;
-        try { data = txt ? JSON.parse(txt) : null; } catch { data = null; }
-
-        if (!response.ok) {
-            throw new Error(data?.error || txt || `HTTP ${response.status}`);
-        }
-
-        mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Pedido apagado com sucesso.', tipo: 'sucesso' });
-        // Atualiza em tempo real
-        await Promise.allSettled([carregarPedidos(), carregarDashboard()]);
-    } catch (e) {
-        console.error('Erro ao apagar pedido:', e);
-        mostrarModalMensagem({ titulo: 'Erro', mensagem: e?.message || 'Erro ao apagar pedido.', tipo: 'erro' });
-    }
-}
-
-
-// Ver detalhes do pedido
-async function verDetalhesPedido(pedidoId) {
-    try {
-        const response = await fetch(`${API_BASE}/admin/pedido/${pedidoId}`, {
-            headers: apiHeaders(false)
-        });
-
-
-
-        if (response.ok) {
-            const data = await response.json();
-            alert(`Detalhes do Pedido #${pedidoId}:\n\nCliente: ${data.usuario_nome}\nServiço: ${data.servico}\nStatus: ${data.status}\nValor: R$ ${data.valor_estimado || 'N/A'}`);
-        }
-    } catch (error) {
-        console.error('Erro ao carregar detalhes do pedido:', error);
-    }
-}
-
-// Atualizar status do pedido
-async function atualizarStatusPedido(pedidoId, novoStatus) {
-    try {
-        const response = await fetch(`${API_BASE}/admin/pedido/${pedidoId}/status`, {
-            method: 'PUT',
-            headers: apiHeaders(),
-            body: JSON.stringify({ status: novoStatus })
-        });
-
-        if (response.ok) {
-            alert('Status atualizado com sucesso!');
-            carregarPedidos();
-            return;
-        }
-
-        const txt = await response.text().catch(() => '');
-        console.error('Erro ao atualizar status do pedido', { pedidoId, novoStatus, status: response.status, body: txt });
-        alert(`Erro ao atualizar status: ${txt || response.status}`);
-    } catch (error) {
-        console.error('Erro:', error);
-        alert('Erro ao atualizar status');
-    }
-}
-
-// Testar modelo (botão funcional) - executa ML real com input mínimo
-async function testarModelo(arquivo) {
-    try {
-        const token = getToken();
-        if (!token) {
-            alert('Sessão expirada. Faça login novamente.');
-            window.location.href = '/public/pages/login.html';
-            return;
-        }
-
-        // Mapear arquivo => rota e input
-        // (Mantemos input mínimo para não quebrar UI e garantir que os endpoints aceitem os campos)
-        let rota = null;
-        let payload = {};
-        let titulo = '';
-        let htmlInputs = '';
-
-        switch (arquivo) {
-            case 'classificador_suporte.py':
-                rota = '/ml/classificador-suporte';
-                titulo = 'Testar Classificador de Suporte';
-                htmlInputs = `
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <label>Descrição</label>
-                        <textarea id="mlInputDescricao" rows="5" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder="Descreva o problema..."></textarea>
-                    </div>
-                    `;
-                break;
-            case 'extrator_tags.py':
-                rota = '/ml/extrator-tags';
-                titulo = 'Testar Extrator de Tags';
-                htmlInputs = `
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <label>Descrição</label>
-                        <textarea id="mlInputDescricao" rows="5" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder="Cole a descrição do projeto..."></textarea>
-                    </div>
-                    `;
-                break;
-            case 'estimador_orcamento.py':
-                rota = '/ml/estimador-orcamento';
-                titulo = 'Testar Estimador de Orçamento';
-                htmlInputs = `
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <label>Tipo de Serviço</label>
-                        <input id="mlInputTipoServico" type="text" value="sistema" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" />
-                        <label>Parâmetros (JSON)</label>
-                        <textarea id="mlInputParametros" rows="5" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder='{"valor": 1000, "paginas": 5, "funcionalidades": 3, "prazo_dias": 30}'></textarea>
-                    </div>
-                    `;
-                break;
-            case 'recomendador_servicos.py':
-                rota = '/ml/recomendador-servicos';
-                titulo = 'Testar Recomendador de Serviços';
-                htmlInputs = `
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <label>Tipo de Cliente</label>
-                        <input id="mlInputTipoCliente" type="text" value="empresa" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" />
-                        <label>Budget</label>
-                        <input id="mlInputBudget" type="number" value="5000" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" />
-                        <label>Necessidades</label>
-                        <textarea id="mlInputNecessidades" rows="4" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder="Quais são as necessidades do cliente?"></textarea>
-                    </div>
-                    `;
-                break;
-            case 'clustering_clientes.py':
-                rota = '/ml/clustering-cliente';
-                titulo = 'Testar Clustering de Clientes';
-                htmlInputs = `
-                    <div style="display:flex;flex-direction:column;gap:10px;">
-                        <label>Histórico (JSON)</label>
-                        <textarea id="mlInputHistorico" rows="5" style="width:100%;padding:10px;background:#021124;border:1px solid #2d4464;color:white;border-radius:8px;" placeholder='{"pedidos_totais": 5, "valor_total_gasto": 8000, "tempo_como_cliente_dias": 200, "tipo_ultimo_pedido": "website"}'></textarea>
-                    </div>
-                    `;
-                break;
-            default:
-                mostrarModalMensagem({
-                    titulo: 'Modelo não suportado',
-                    mensagem: 'Esse modelo ainda não tem input configurado na interface.',
-                    tipo: 'aviso'
-                });
-                return;
-        }
-
-        // Usar modal de mensagem existente para coletar input
-        mostrarModalMensagem({
-            titulo,
-            mensagem: htmlInputs,
-            tipo: 'info',
-            html: true
-        });
-
-        // Criar botão “Executar” dentro do modal (de forma não invasiva)
-        // Espera o DOM do modal-mensagem estar renderizado.
-        setTimeout(() => {
-            const modal = document.getElementById('modal-mensagem');
-            const corpo = document.getElementById('mensagem-corpo');
-            if (!modal || !corpo) return;
-
-            // evitar duplicar botões
-            if (document.getElementById('mlExecBtn')) return;
-
-            const btn = document.createElement('button');
-            btn.id = 'mlExecBtn';
-            btn.textContent = 'Executar ML';
-            btn.className = 'btn-add';
-            btn.style.marginTop = '12px';
-            btn.onclick = async () => {
-                try {
-                    // coletar inputs por rota
-                    if (arquivo === 'classificador_suporte.py') {
-                        const descricao = document.getElementById('mlInputDescricao')?.value || '';
-                        if (!descricao.trim()) throw new Error('Informe a descrição.');
-                        payload = { descricao };
-                    } else if (arquivo === 'extrator_tags.py') {
-                        const descricao = document.getElementById('mlInputDescricao')?.value || '';
-                        if (!descricao.trim()) throw new Error('Informe a descrição.');
-                        payload = { descricao };
-                    } else if (arquivo === 'estimador_orcamento.py') {
-                        const tipo_servico = document.getElementById('mlInputTipoServico')?.value || 'website';
-                        const raw = document.getElementById('mlInputParametros')?.value || '{}';
-                        let parametros = {};
-                        try { parametros = JSON.parse(raw); } catch { throw new Error('Parâmetros JSON inválidos.'); }
-                        payload = { tipo_servico, parametros };
-                    } else if (arquivo === 'recomendador_servicos.py') {
-                        const tipo_cliente = document.getElementById('mlInputTipoCliente')?.value || 'empresa';
-                        const budget = Number(document.getElementById('mlInputBudget')?.value || 0);
-                        const necessidades = document.getElementById('mlInputNecessidades')?.value || '';
-                        payload = { tipo_cliente, budget, necessidades };
-                    } else if (arquivo === 'clustering_clientes.py') {
-                        const raw = document.getElementById('mlInputHistorico')?.value || '{}';
-                        let historico = {};
-                        try { historico = JSON.parse(raw); } catch { throw new Error('Histórico JSON inválido.'); }
-                        payload = { historico };
-                    }
-
-                    const resp = await fetch(`${API_BASE}${rota}`, {
-                        method: 'POST',
-                        headers: apiHeaders(true),
-                        body: JSON.stringify(payload)
-                    });
-
-                    const txt = await resp.text().catch(() => '');
-                    let data;
-                    try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt }; }
-
-                    if (!resp.ok) {
-                        throw new Error(data?.error || txt || `HTTP ${resp.status}`);
-                    }
-
-                    // Renderizar resultado no ml-container
-                    const container = document.getElementById('ml-container') || document.body;
-                    container.innerHTML = `
-                        <div style="padding:20px;background:#021124;">
-                            <h2>Resultado ML</h2>
-                            <pre style="white-space:pre-wrap;word-break:break-word;background:#021124;padding:15px;border-radius:8px;">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
-                        </div>
-                    `;
-
-                    mostrarModalMensagem({
-                        titulo: 'ML executado com sucesso',
-                        mensagem: 'Resultado exibido abaixo na seção ML.',
-                        tipo: 'sucesso'
-                    });
-
-                    // fechar o modal de mensagem para liberar tela (opcional)
-                    window.fecharModalMensagem();
-                } catch (e) {
-                    console.error('Erro ao executar ML:', e);
-                    mostrarModalMensagem({
-                        titulo: 'Erro ao executar ML',
-                        mensagem: (e && e.message) ? e.message : 'Erro interno',
-                        tipo: 'erro'
-                    });
-                }
-            };
-
-            corpo.appendChild(btn);
-        }, 0);
-
-    } catch (err) {
-        console.error('Erro ao testar modelo:', err);
-        mostrarModalMensagem({
-            titulo: 'Erro ao testar modelo',
-            mensagem: (err && err.message) ? err.message : 'Erro interno',
-            tipo: 'erro'
-        });
-    }
-}
-
-
-// Garantir que funções chamadas por onclick fiquem no escopo global
-window.verDetalhes = verDetalhes;
-window.verDetalhesPedido = verDetalhesPedido;
-window.atualizarStatusPedido = atualizarStatusPedido;
-window.responderMensagem = responderMensagem;
-window.marcarResolvido = marcarResolvido;
-window.apagarCliente = apagarCliente;
-window.apagarPedido = apagarPedido;
-window.apagarChamadoSuporte = apagarChamadoSuporte;
-window.testarModelo = testarModelo;
-
-// -------------------- CHAT (Admin) --------------------
-let chatConversas = [];
-
-// Controla o cliente selecionado para envio de mensagens (variável global de controle)
-let usuarioSelecionadoId = null;
-
-let chatPollingTimer = null;
-
-function mostrarSecao(idSecao) {
-    // esconder seções principais
-    const ids = ['dashboard', 'clientes', 'pedidos', 'suporte', 'conversas', 'ml'];
-    ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = (id === idSecao) ? 'block' : 'none';
-    });
-}
-
-async function setupChatAdmin() {
-    const convList = document.getElementById('chat-conversas-list');
-    const form = document.getElementById('chat-form');
-
-    if (!convList || !form) return; // página ainda não recebeu UI
-
-    document.getElementById('conversas')?.addEventListener('click', () => mostrarSecao('conversas'));
-
-    // Submit envia mensagem
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        // Validação reforçada: verifica se usuarioSelecionadoId está preenchido
-        if (!usuarioSelecionadoId || usuarioSelecionadoId === null || usuarioSelecionadoId === undefined || String(usuarioSelecionadoId).trim() === '') {
-            mostrarModalMensagem({ titulo: 'Selecione uma conversa', mensagem: 'Escolha um usuário antes de enviar.', tipo: 'aviso' });
-            return;
-        }
-
-        const input = document.getElementById('chat-input');
-        const conteudo = (input?.value || '').trim();
-        if (!conteudo) return;
-
-        try {
-            const convSelecionada = chatConversas.find(c => String(c.chamado_id || c.usuario_id || c.id) === String(usuarioSelecionadoId));
-            const chamadoId = convSelecionada?.chamado_id ?? null;
-            const usuarioIdParaCriar = convSelecionada?.usuario_id ?? null;
-
-            // Chat backend (routes no blueprint chat.py) ADMIN: /api/admin/suporte/mensagens
-            // Se chamado_id existir, segue o fluxo normal.
-            // Se chamado_id for null, criamos/abrimos o chamado enviando usuario_id.
-            const isChamadoNulo = (chamadoId === null || chamadoId === undefined || String(chamadoId).trim() === '' || String(chamadoId) === 'null' || String(chamadoId) === 'undefined');
-
-            if (isChamadoNulo && (usuarioIdParaCriar === null || usuarioIdParaCriar === undefined)) {
-                mostrarModalMensagem({
-                    titulo: 'Sem usuário selecionado',
-                    mensagem: 'Selecione um cliente válido antes de enviar.',
-                    tipo: 'aviso'
-                });
-                return;
-            }
-
-            // Fluxo correto conforme backend/chat.py:
-            // - existe POST /chat/<int:chamado_id>/mensagens
-            // - se chamado_id está null, primeiro abrimos/registramos um Chamado via endpoint admin
-            //   que crie o ChamadoSuporte (em suporte.py: /suporte ou /chamados com admin usuário pode usar /chamados).
-            // Como o endpoint de admin para criação de chamados pode variar no projeto,
-            // usamos /suporte (suporte_bp: /suporte POST) enviando {titulo, descricao, ...}.
-            // Porém nossa UI só tem "conteudo". Para manter compatibilidade, mapeamos:
-            // titulo = 'Chat iniciado'
-            // descricao = conteudo
-            // Em seguida enviamos mensagem com o novo chamado_id retornado.
-
-            const token = getToken();
-            if (!token) {
-                mostrarModalMensagem({
-                    titulo: 'Sessão expirada',
-                    mensagem: 'Faça login novamente para continuar.',
-                    tipo: 'erro'
-                });
-                window.location.href = '/public/pages/login.html';
-                return;
-            }
-
-            let novoChamadoId = null;
-
-            if (!isChamadoNulo) {
-                novoChamadoId = chamadoId;
-            } else {
-                const respChamado = await fetch(`${API_BASE}/suporte`, {
-                    method: 'POST',
-                    headers: apiHeaders(true),
-                    body: JSON.stringify({
-                        titulo: 'Chat iniciado',
-                        descricao: conteudo,
-                        usuario_id: usuarioIdParaCriar
-                    })
-                });
-
-                if (!respChamado.ok) {
-                    const txt = await respChamado.text().catch(() => '');
-                    throw new Error(txt || `HTTP ${respChamado.status}`);
-                }
-
-                const dataChamado = await respChamado.json();
-                novoChamadoId = dataChamado?.chamado?.id ?? dataChamado?.chamado_id ?? null;
-
-                if (novoChamadoId === null || novoChamadoId === undefined || String(novoChamadoId).trim() === '' || String(novoChamadoId) === 'null') {
-                    throw new Error('Backend não retornou chamado_id ao iniciar o chat.');
-                }
-            }
-
-            const resp = await fetch(`${API_BASE}/chat/${novoChamadoId}/mensagens`, {
-                method: 'POST',
-                headers: apiHeaders(true),
-                body: JSON.stringify({ conteudo })
-            });
-
-
-            if (!resp.ok) {
-                const txt = await resp.text().catch(() => '');
-                throw new Error(txt || `HTTP ${resp.status}`);
-            }
-
-            input.value = '';
-            await carregarMensagensChat(chamadoId);
-        } catch (err) {
-            console.error(err);
-            mostrarModalMensagem({ titulo: 'Erro', mensagem: 'Falha ao enviar mensagem.', tipo: 'erro' });
-        }
-    });
-
-    // iniciar
-    await carregarConversasChat();
-    iniciarPollingChat();
-
-    // ao abrir pela navegação (#conversas)
-    window.addEventListener('hashchange', () => {
-        if (location.hash === '#conversas') {
-            mostrarSecao('conversas');
-        }
-    });
-
-    if (location.hash === '#conversas') mostrarSecao('conversas');
-}
-
-async function carregarConversasChat() {
-    const convList = document.getElementById('chat-conversas-list');
-    if (!convList) return;
-
-    try {
-        // Observação: o backend registra como /chat/conversas (sem prefixo /api no blueprint)
-        const baseUrl = API_BASE.replace('/api','');
-            const resp = await fetch(`${baseUrl}/chat/conversas`, {
-            headers: apiHeaders(true)
-        });
-
-        // fallback: se retornar vazio/não vier conversas, ainda vamos preencher com usuários.
-        // (não remove a lista de mensagens; apenas evita ficar “sem conversa” no admin)
-        if (resp.ok) {
-            const peek = await resp.clone().json().catch(() => null);
-            if (peek && !peek.conversas) {
-                throw new Error('Resposta do chat sem campo conversas');
-            }
-        }
-
-        if (!resp.ok) {
-            const txt = await resp.text().catch(() => '');
-            console.error('Erro ao carregar conversas:', resp.status, txt);
-            throw new Error(`HTTP ${resp.status}`);
-        }
-
-        if (!resp.ok) {
-            const txt = await resp.text().catch(() => '');
-            console.error('Erro ao carregar conversas:', resp.status, txt);
-            mostrarModalMensagem({ titulo: 'Erro', mensagem: `Não foi possível carregar conversas. (${resp.status})`, tipo: 'erro' });
-            return;
-        }
-
-        const data = await resp.json();
-        chatConversas = data.conversas || [];
-        
-        // DEBUG: Log da estrutura de dados do backend
-        if (chatConversas.length > 0) {
-            console.log('✓ Conversas carregadas do backend:', chatConversas[0]);
-            console.log('  Chaves disponíveis:', Object.keys(chatConversas[0]));
-        }
-        
-        exibirConversasChat(chatConversas);
-
-        // Se não houver conversas, carregar lista de clientes como fallback
-        if (chatConversas.length === 0) {
-            console.warn('⚠ Nenhuma conversa encontrada. Carregando lista de clientes como fallback...');
-            try {
-                const respClientes = await fetch(`${API_BASE}/admin/clientes`, {
-                    headers: apiHeaders(true)
-                });
-                if (respClientes.ok) {
-                    const dataClientes = await respClientes.json();
-                    const clientes = dataClientes.clientes || [];
-                    
-                    if (clientes.length > 0) {
-                        console.log('✓ Clientes carregados:', clientes[0]);
-                        console.log('  Chaves disponíveis:', Object.keys(clientes[0]));
-                    }
-                    
-                    // Criar conversas virtuais a partir dos clientes
-                    chatConversas = clientes.map((cliente, idx) => {
-                        // IMPORTANTE: Tentar múltiplas chaves possíveis para o ID
-                        const idCliente = cliente.id || cliente.usuario_id || cliente.chamado_id || null;
-                        
-                        if (!idCliente) {
-                            console.error('⚠ Cliente sem ID válido:', cliente);
-                        }
-                        
-                        return {
-                            chamado_id: idCliente,
-                            usuario_id: idCliente,
-                            usuario_nome: cliente.nome || cliente.usuario_nome || '—',
-                            usuario_email: cliente.email || cliente.usuario_email || '—',
-                            ultima_mensagem: '(Nenhuma mensagem)',
-                            ultima_mensagem_data: null,
-                            qtd_mensagens: 0,
-                            status_conversa: 'novo',
-                            prioridade: 'normal'
-                        };
-                    });
-                    
-                    console.log(`✓ ${chatConversas.length} clientes mapeados como conversas virtuais.`);
-                    if (chatConversas.length > 0) {
-                        console.log('  Primeiro mapeado:', chatConversas[0]);
-                    }
-                    
-                    console.log(`${chatConversas.length} clientes carregados como conversas virtuais.`);
-                    exibirConversasChat(chatConversas);
-                }
-            } catch (err) {
-                console.error('Erro ao carregar clientes como fallback:', err);
-                exibirConversasChat([]);
-            }
-        }
-
-        // Pré-seleção automática APÓS HTML estar renderizado
-        // IMPORTANTE: Usar setTimeout para garantir que DOM está pronto
-        if ((!usuarioSelecionadoId || usuarioSelecionadoId === null) && chatConversas.length > 0) {
-            setTimeout(async () => {
-                // Validar que tem dados seguros
-                const primeiroCliente = chatConversas[0];
-                const idPrimeiro = primeiroCliente.chamado_id || primeiroCliente.usuario_id || primeiroCliente.id;
-                
-                if (!idPrimeiro || idPrimeiro === null || String(idPrimeiro).trim() === '') {
-                    console.error('❌ Não foi possível fazer pré-seleção: ID do primeiro cliente é inválido');
-                    console.error('   Objeto:', primeiroCliente);
-                    return;
-                }
-                
-                console.log(`✓ Pré-seleção: ${primeiroCliente.usuario_nome} (ID: ${idPrimeiro})`);
-                await selecionarConversa(idPrimeiro);
-            }, 100); // Delay pequeno para garantir renderização
-        }
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-function exibirConversasChat(conversas) {
-    const convList = document.getElementById('chat-conversas-list');
-    if (!convList) return;
-
-    convList.innerHTML = '';
-    if (!conversas || conversas.length === 0) {
-        convList.innerHTML = '<div class="sem-dados">Nenhuma conversa ainda.</div>';
-        return;
-    }
-
-    conversas.forEach((c, idx) => {
-        // DEBUG: Validar estrutura de cada conversa
-        if (!c.chamado_id && !c.usuario_id && !c.id) {
-            console.error(`⚠ Conversa ${idx} sem ID identificável:`, c);
-            return; // Pular conversa sem ID
-        }
-        
-        // IMPORTANTE: Tentar múltiplas propriedades possíveis para o ID
-        const idConversa = c.chamado_id || c.usuario_id || c.id;
-        
-        console.log(`[${idx}] Renderizando conversa:`, {
-            id: idConversa,
-            nome: c.usuario_nome || c.nome,
-            objeto: c
-        });
-        
-        const item = document.createElement('div');
-        item.className = 'chat-conversa-item';
-        
-        // Injetar ID SEGURO no atributo data-id
-        item.setAttribute('data-id', String(idConversa));
-        item.setAttribute('data-debug-id', String(idConversa));
-        
-        // Marca como ativo se o usuarioSelecionadoId corresponder
-        if (String(idConversa) === String(usuarioSelecionadoId)) {
-            item.classList.add('ativo');
-        }
-
-        const ultima = c.ultima_mensagem ? c.ultima_mensagem : '—';
-        const ultimaData = c.ultima_mensagem_data ? new Date(c.ultima_mensagem_data).toLocaleString('pt-BR') : '';
-
-        item.innerHTML = `
-            <div class="chat-conversa-main">
-                <div class="chat-conversa-nome">${escapeHtml(c.usuario_nome || '—')}</div>
-                <div class="chat-conversa-ultima">${escapeHtml(ultima).slice(0, 120)}</div>
-            </div>
-            <div class="chat-conversa-meta">
-                <div class="chat-conversa-data">${escapeHtml(ultimaData)}</div>
-                <div class="chat-conversa-count">${c.qtd_mensagens || 0}</div>
-            </div>
-        `;
-
-        // Evento de clique para selecionar conversa
-        item.addEventListener('click', async () => {
-            // Capturar ID do atributo data-id
-            const idSelecionado = item.getAttribute('data-id');
-            
-            // TRAVA 1: Validar ID antes de qualquer ação
-            if (!idSelecionado || idSelecionado === 'null' || idSelecionado === 'undefined' || String(idSelecionado).trim() === '') {
-                console.error('❌ BLOQUEADO: Tentativa de selecionar com ID inválido:', idSelecionado);
-                mostrarModalMensagem({
-                    titulo: 'Erro de Dados',
-                    mensagem: 'Não foi possível identificar o cliente. Recarregue a página.',
-                    tipo: 'erro'
-                });
-                return;
-            }
-            
-            console.log(`✓ Clique válido: ID ${idSelecionado} (${c.usuario_nome})`);
-            
-            // IMPORTANTE: Remover classe 'ativo' de TODOS os itens primeiro
-            document.querySelectorAll('.chat-conversa-item').forEach(el => {
-                el.classList.remove('ativo');
-            });
-            
-            // Adicionar classe 'ativo' apenas ao item clicado
-            item.classList.add('ativo');
-            
-            // Definir variável global
-            usuarioSelecionadoId = idSelecionado;
-            
-            // Carregar conversa e mensagens
-            await selecionarConversa(idSelecionado);
-        });
-
-        convList.appendChild(item);
-    });
-}
-
-async function selecionarConversa(chamadoId) {
-    // Permite seleção mesmo quando a conversa do banco está com chamado_id=null.
-    // Nesse caso, o usuário precisa conseguir abrir o chat iniciando um chamado ao enviar a 1ª mensagem.
-
-    // TRAVA RIGOROSA 1: chamadoId precisa existir como ID do cliente/conversa (pelo menos usuario_id/id).
-    if (chamadoId === null || chamadoId === undefined) {
-        // Não bloqueia; apenas aborta o nome/seleção quando não existe ID de forma alguma.
-        console.error('❌ BLOQUEADO: chamadoId é null/undefined');
-        return;
-    }
-
-    // TRAVA RIGOROSA 2: Converter para string e validar
-    const idStr = String(chamadoId).trim();
-    if (idStr === '' || idStr === 'NaN' || idStr === 'undefined') {
-        console.error(`❌ BLOQUEADO: ID inválido após conversão: "${idStr}"`);
-        return;
-    }
-
-
-    // TRAVA RIGOROSA 3: Validar que é um número ou ID válido
-    const idNum = parseInt(idStr, 10);
-    if (isNaN(idNum) && !/^[a-zA-Z0-9_-]+$/.test(idStr)) {
-        console.error(`❌ BLOQUEADO: ID não é número nem UUID válido: "${idStr}"`);
-        return;
-    }
-
-    // Só aqui é seguro prosseguir
-    usuarioSelecionadoId = idStr;
-    console.log(`✓ Conversa selecionada: ID ${idStr}`);
-
-    const titulo = document.getElementById('chat-conversa-title');
-    const subtitle = document.getElementById('chat-conversa-subtitle');
-
-    // IMPORTANTE: atualizar cabeçalho IMEDIATAMENTE com o nome clicado.
-    // Pode acontecer de a conversa não ter histórico (404) e mesmo assim precisamos exibir o nome.
-    const conv = chatConversas.find(x => String(x.chamado_id || x.usuario_id || x.id) === String(chamadoId));
-    const nomeCliente = conv?.usuario_nome || '—';
-
-    if (titulo) titulo.textContent = nomeCliente;
-    if (subtitle) subtitle.textContent = `${conv?.status_conversa || '—'} • ${conv?.prioridade || '—'}`;
-
-    exibirConversasChat(chatConversas);
-    await carregarMensagensChat(chamadoId);
-}
-
-async function carregarMensagensChat(chamadoId) {
-    const container = document.getElementById('chat-mensagens');
-    if (!container) return;
-
-    // Se não houver chamado_id ainda, não chamamos o backend de mensagens.
-    // O chat continua selecionável; a primeira mensagem deve abrir/criar o chamado.
-    if (chamadoId === null || chamadoId === undefined) {
-        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para abrir um chamado/iniciar o chat com este usuário.</div>";
-        return;
-    }
-
-    const idStr = String(chamadoId).trim();
-    if (idStr === '' || idStr === 'null' || idStr === 'undefined' || idStr === 'NaN') {
-        container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para abrir um chamado/iniciar o chat com este usuário.</div>";
-        return;
-    }
-
-
-    console.log(`→ Carregando mensagens para ID: ${idStr}`);
-
-    try {
-        // ADMIN: mensagens do suporte ficam em /api/admin/suporte/mensagens (chat.py / blueprint de admin)
-        // Obs: como o endpoint admin pode ou não requerer parâmetros, montamos por querystring.
-        const url = `${API_BASE}/admin/suporte/mensagens?chamado_id=${encodeURIComponent(idStr)}`;
-        console.log(`→ Requisição: GET ${url}`);
-
-        const resp = await fetch(url, {
-            headers: apiHeaders(true)
-        });
-
-
-
-        // Tratamento de 404 (conversa inexistente / seed com chamado_id=null)
-        if (!resp.ok) {
-            let payload = null;
-            try {
-                payload = await resp.json();
-            } catch {
-                // fallback: tenta ler texto
-                try { payload = { error: await resp.text().catch(() => '') }; } catch {}
-            }
-
-            const errorMsg = payload?.error || '';
-
-            // Se for conversa não encontrada, mostramos UI limpa
-            if (resp.status === 404 || String(errorMsg).toLowerCase().includes('conversa não encontrada')) {
-                container.innerHTML = "<div class='chat-vazio'>Nenhuma mensagem trocada ainda. Envie uma mensagem para iniciar a conversa!</div>";
-                return;
-            }
-
-            console.error(`❌ Erro ao carregar mensagens: HTTP ${resp.status}`, payload);
-            container.innerHTML = '<div class="sem-dados">Falha ao carregar mensagens. (Verifique console)</div>';
-            return;
-        }
-
-        const data = await resp.json();
-        const mensagens = data.mensagens || [];
-        console.log(`✓ ${mensagens.length} mensagens carregadas`);
-
-        renderMensagensChat(mensagens);
-    } catch (err) {
-        // Mantém UI limpa em falhas esperadas do chat
-        console.error('❌ Erro ao carregar mensagens:', err);
-        container.innerHTML = '<div class="sem-dados">Erro ao carregar mensagens.</div>';
-    }
-}
-
-function renderMensagensChat(mensagens) {
-    const container = document.getElementById('chat-mensagens');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    if (!mensagens || mensagens.length === 0) {
-        container.innerHTML = '<div class="sem-dados">Nenhuma mensagem nesta conversa.</div>';
-        return;
-    }
-
-    const token = getToken();
-
-    const me = null; // sem necessidade
-
-    mensagens.forEach(m => {
-        const isAdminMsg = m.autor_tipo === 'admin';
-        const div = document.createElement('div');
-        div.className = `chat-msg ${isAdminMsg ? 'admin' : 'user'}`;
-
-        const dataStr = m.data ? new Date(m.data).toLocaleString('pt-BR') : '';
-
-        div.innerHTML = `
-            <div class="chat-bubble">
-                <div class="chat-text">${escapeHtml(m.conteudo || '')}</div>
-                <div class="chat-time">${escapeHtml(dataStr)}</div>
-            </div>
-        `;
-
-        container.appendChild(div);
-    });
-
-    container.scrollTop = container.scrollHeight;
-}
-
-function iniciarPollingChat() {
-    if (chatPollingTimer) clearInterval(chatPollingTimer);
-    chatPollingTimer = setInterval(async () => {
-        // atualiza lista e, se houver usuário selecionado, atualiza mensagens
-        if (!document.getElementById('conversas') || document.getElementById('conversas').style.display === 'none') return;
-
-        await carregarConversasChat();
-        // Verifica variável global usuarioSelecionadoId para polling.
-        // IMPORTANTE: se a conversa selecionada ainda não existe no banco, o backend retorna chamado_id=null.
-        // Nesse caso, não chamamos o endpoint de mensagens.
-        if (usuarioSelecionadoId !== null && usuarioSelecionadoId !== undefined && String(usuarioSelecionadoId).trim() !== '' && String(usuarioSelecionadoId) !== 'null' && String(usuarioSelecionadoId) !== 'undefined') {
-            await carregarMensagensChat(usuarioSelecionadoId);
-        }
-    }, 4000);
-}
-
