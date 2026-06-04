@@ -450,7 +450,7 @@ async function apagarCliente(clienteId) {
     }
 
     try {
-        const resp = await fetch(`${API_BASE}/admin/cliente/${clienteId}`, {
+        const resp = await fetch(`${API_BASE}/admin/clientes/${clienteId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
