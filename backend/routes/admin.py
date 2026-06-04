@@ -239,7 +239,7 @@ def get_clientes():
             dados = request.get_json() or {}
             if not dados.get("email"):
                 return jsonify({"error": "O campo email é obrigatório"}), 400
-                
+
             existing = Usuario.query.filter_by(email=dados.get("email")).first()
             if existing:
                 return jsonify({"error": "Este email já está cadastrado"}), 400
@@ -250,7 +250,7 @@ def get_clientes():
                 telefone=dados.get("telefone", ""),
                 status=dados.get("status", "ativo"),
                 email_verificado=True,
-                role="user"
+                role="user",
             )
             novo.set_senha(dados.get("senha", "senha123"))
             db.session.add(novo)
@@ -260,61 +260,48 @@ def get_clientes():
             db.session.rollback()
             return jsonify({"error": f"Erro ao criar usuário: {str(e)}"}), 500
 
+    # GET (blindagem dos campos sensíveis)
     try:
-        usuarios = Usuario.query.filter_by(role="user").all()
+        usuarios = Usuario.query.all()
+        resultado = []
+        for u in usuarios:
+            try:
+                email = u.email  # property com decrypt
+            except Exception:
+                email = getattr(u, "email_criptografado", None) or ""
 
-        if usuarios is None or len(usuarios) < 5:
-            quantidade_para_criar = 5 - (len(usuarios) if usuarios else 0)
-            quantidade_para_criar = max(0, quantidade_para_criar)
+            try:
+                telefone = u.telefone  # property com decrypt
+            except Exception:
+                telefone = ""
 
-            for i in range(quantidade_para_criar):
-                idx = (len(usuarios) or 0) + i + 1
-                dummy = Usuario(
-                    nome=f"Cliente Dummy {idx}",
-                    email=f"dummy{idx}@example.com",
-                    telefone=f"+55 11 99999-000{idx}",
-                    status="ativo",
-                    email_verificado=False,
-                    role="user",
-                )
-                dummy.set_senha("senha123")
-                db.session.add(dummy)
+            try:
+                data_cadastro = u.data_cadastro.isoformat() if u.data_cadastro else None
+            except Exception:
+                data_cadastro = None
 
-            db.session.commit()
-            usuarios = Usuario.query.filter_by(role="user").all()
+            try:
+                data_ultimo_login = u.data_ultimo_login.isoformat() if u.data_ultimo_login else None
+            except Exception:
+                data_ultimo_login = None
 
-        clientes = []
-        for usuario in usuarios:
-            pedidos = Pedido.query.filter_by(usuario_id=usuario.id).all()
-            chamados = ChamadoSuporte.query.filter_by(usuario_id=usuario.id).all()
-            orcamentos = Orcamento.query.filter_by(usuario_id=usuario.id).all()
-
-            valor_total = sum(p.valor_estimado or 0 for p in pedidos)
-
-            clientes.append(
+            resultado.append(
                 {
-                    "id": usuario.id,
-                    "nome": usuario.nome,
-                    "email": usuario.email,
-                    "telefone": usuario.telefone,
-                    "data_cadastro": usuario.data_cadastro.isoformat() if usuario.data_cadastro else None,
-                    "data_ultimo_login": usuario.data_ultimo_login.isoformat() if usuario.data_ultimo_login else None,
-                    "email_verificado": usuario.email_verificado,
-                    "status": usuario.status,
-                    "num_pedidos": len(pedidos),
-                    "num_chamados": len(chamados),
-                    "num_orcamentos": len(orcamentos),
-                    "valor_total_pedidos": valor_total,
-                    "total_gasto": getattr(usuario, 'total_gasto', valor_total),
-                    "pedidos": [p.to_dict() for p in pedidos] if hasattr(Pedido, 'to_dict') else [],
-                    "chamados": [c.to_dict() for c in chamados] if hasattr(ChamadoSuporte, 'to_dict') else [],
-                    "orcamentos": [o.to_dict() for o in orcamentos] if hasattr(Orcamento, 'to_dict') else [],
+                    "id": u.id,
+                    "nome": u.nome or "",
+                    "email": email,
+                    "telefone": telefone,
+                    "data_cadastro": data_cadastro,
+                    "data_ultimo_login": data_ultimo_login,
                 }
             )
 
-        return jsonify({"total": len(clientes), "clientes": clientes}), 200
-    except Exception as e:
-        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
+        return jsonify({"clientes": resultado}), 200
+    except Exception:
+        import traceback
+
+        print("[ERRO /clientes]", traceback.format_exc())
+        return jsonify({"clientes": []}), 200
 
 
 @admin_bp.route("/pedidos", methods=["GET"])
