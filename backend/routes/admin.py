@@ -369,8 +369,23 @@ def apagar_cliente(usuario_id):
         if not u:
             return jsonify({"erro": "Cliente não encontrado"}), 404
 
-        Pedido.query.filter_by(usuario_id=usuario_id).delete()
-        ChamadoSuporte.query.filter_by(usuario_id=usuario_id).delete()
+        # Delete em cascata manual (evita falhas de FK/NOT NULL em ambientes com schema antigo)
+        # Importante: como o schema em produção pode estar com alguns registros órfãos,
+        # fazemos o delete no banco por usuário e também removemos quaisquer orçamentos
+        # com usuario_id nulo (se existir) para evitar IntegrityError.
+        try:
+            Orcamento.query.filter(Orcamento.usuario_id == usuario_id).delete(synchronize_session=False)
+        except Exception:
+            Orcamento.query.filter(Orcamento.usuario_id.is_(None)).delete(synchronize_session=False)
+
+        # Segurança adicional: alguns bancos antigos podem ter orcamentos com usuario_id inválido/NULL.
+        try:
+            Orcamento.query.filter(Orcamento.usuario_id.is_(None)).delete(synchronize_session=False)
+        except Exception:
+            pass
+
+        Pedido.query.filter(Pedido.usuario_id == usuario_id).delete(synchronize_session=False)
+        ChamadoSuporte.query.filter(ChamadoSuporte.usuario_id == usuario_id).delete(synchronize_session=False)
         db.session.delete(u)
         db.session.commit()
         return jsonify({"mensagem": "Cliente removido com sucesso"}), 200
