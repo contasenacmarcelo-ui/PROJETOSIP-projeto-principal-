@@ -140,6 +140,16 @@ def _ensure_seed_data():
 
     seed_chamados = [
         {
+            "usuario": user_admin,
+            "titulo": "Suporte seed admin",
+            "descricao": "Mensagem inicial do suporte (seed admin).",
+            "categoria_classificada": "duvida",
+            "prioridade": "media",
+            "status": "aberto",
+            "autor_tipo": "admin",
+            "conteudo_msg": "Olá! Sou o admin seed e preciso de ajuda.",
+        },
+        {
             "usuario": user_1,
             "titulo": "Suporte seed 1",
             "descricao": "Mensagem inicial do suporte (seed 1).",
@@ -199,6 +209,7 @@ def _ensure_seed_data():
 # -------------------- Rotas Admin --------------------
 
 @admin_bp.route("/dashboard", methods=["GET"])
+@admin_bp.route("/admin/dashboard", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_dashboard():
@@ -230,6 +241,7 @@ def get_dashboard():
 
 # CORREÇÃO 2 e 3: Adicionado suporte a POST e proteção JWT alinhada com as demais rotas
 @admin_bp.route("/clientes", methods=["GET", "POST"])
+@admin_bp.route("/admin/clientes", methods=["GET", "POST"])
 @jwt_required()
 @require_admin()
 def get_clientes():
@@ -302,6 +314,110 @@ def get_clientes():
 
         print("[ERRO /clientes]", traceback.format_exc())
         return jsonify({"clientes": []}), 200
+
+
+@admin_bp.route("/clientes/<int:usuario_id>", methods=["GET"])
+@jwt_required()
+@require_admin()
+def get_cliente_detalhe(usuario_id):
+    try:
+        u = Usuario.query.get(usuario_id)
+        if not u:
+            return jsonify({"erro": "Cliente não encontrado"}), 404
+
+        try:
+            email = u.email
+        except Exception:
+            email = "—"
+
+        try:
+            telefone = u.telefone
+        except Exception:
+            telefone = "—"
+
+        try:
+            data_cadastro = u.data_cadastro.isoformat() if u.data_cadastro else None
+        except Exception:
+            data_cadastro = None
+
+        return (
+            jsonify(
+                {
+                    "id": u.id,
+                    "nome": u.nome or "",
+                    "email": email,
+                    "telefone": telefone,
+                    "status": u.status or "",
+                    "data_cadastro": data_cadastro,
+                }
+            ),
+            200,
+        )
+    except Exception:
+        import traceback
+
+        print("[ERRO /clientes/<id>]", traceback.format_exc())
+        return jsonify({"erro": "Erro ao buscar cliente"}), 500
+
+
+@admin_bp.route("/clientes/<int:usuario_id>", methods=["DELETE"])
+@jwt_required()
+@require_admin()
+def apagar_cliente(usuario_id):
+    try:
+        u = Usuario.query.get(usuario_id)
+        if not u:
+            return jsonify({"erro": "Cliente não encontrado"}), 404
+
+        Pedido.query.filter_by(usuario_id=usuario_id).delete()
+        ChamadoSuporte.query.filter_by(usuario_id=usuario_id).delete()
+        db.session.delete(u)
+        db.session.commit()
+        return jsonify({"mensagem": "Cliente removido com sucesso"}), 200
+    except Exception:
+        import traceback
+
+        db.session.rollback()
+        print("[ERRO DELETE /clientes/<id>]", traceback.format_exc())
+        return jsonify({"erro": traceback.format_exc()}), 500
+
+
+@admin_bp.route("/pedidos/<int:pedido_id>", methods=["DELETE"])
+@jwt_required()
+@require_admin()
+def apagar_pedido(pedido_id):
+    try:
+        p = Pedido.query.get(pedido_id)
+        if not p:
+            return jsonify({"erro": "Pedido não encontrado"}), 404
+        db.session.delete(p)
+        db.session.commit()
+        return jsonify({"mensagem": "Pedido removido com sucesso"}), 200
+    except Exception:
+        import traceback
+
+        db.session.rollback()
+        print("[ERRO DELETE /pedidos/<id>]", traceback.format_exc())
+        return jsonify({"erro": traceback.format_exc()}), 500
+
+
+@admin_bp.route("/suporte/<int:mensagem_id>", methods=["DELETE"])
+@jwt_required()
+@require_admin()
+def apagar_suporte(mensagem_id):
+    try:
+        m = MensagemSuporte.query.get(mensagem_id)
+        if not m:
+            return jsonify({"erro": "Chamado não encontrado"}), 404
+        db.session.delete(m)
+        db.session.commit()
+        return jsonify({"mensagem": "Chamado removido com sucesso"}), 200
+    except Exception:
+        import traceback
+
+        db.session.rollback()
+        print("[ERRO DELETE /suporte/<id>]", traceback.format_exc())
+        return jsonify({"erro": traceback.format_exc()}), 500
 
 
 @admin_bp.route("/pedidos", methods=["GET"])

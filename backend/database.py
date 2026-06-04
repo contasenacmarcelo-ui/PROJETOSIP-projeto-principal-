@@ -45,6 +45,7 @@ def create_app():
         if (not clientes_existem) and usuarios_total <= 1:
             clientes_ficticios = [
                 {
+
                     'nome': 'Cliente Teste 01',
                     'email': 'cliente01@sip.com',
                     'telefone': '+5511999999001',
@@ -66,10 +67,12 @@ def create_app():
                 },
             ]
 
+
             # Senha padrão para usuários fictícios
             SENHA_FICTICIA = 'senha123'
 
             for c in clientes_ficticios:
+
                 if find_user_by_email(c['email']) is not None:
                     continue
 
@@ -87,4 +90,69 @@ def create_app():
 
 
 
+
+
+        # Seed básico para conversas admin/chat (garante que /chat/<id>/mensagens funcione).
+        # Importante: manter tudo dentro do app.app_context() do create_app.
+        try:
+            from .models import ChamadoSuporte, MensagemSuporte, Notificacao
+            from .utils import find_user_by_email
+            from .auth import criar_usuario
+
+            admin_user = find_user_by_email('admin@sip.com'.lower())
+            if admin_user:
+                # Garante pelo menos 1 chamado (id 1 depende do auto-increment; por isso criamos se estiver vazio)
+                if ChamadoSuporte.query.count() == 0:
+                    # Se existir pelo menos um cliente, cria chamado do primeiro cliente; caso contrário, cria um cliente.
+                    primeiro_cliente = Usuario.query.filter_by(role='user').order_by(Usuario.id.asc()).first()
+                    if not primeiro_cliente:
+                        primeiro_cliente = criar_usuario(
+                            email='cliente_seed@sip.com',
+                            senha='senha123',
+                            nome='Cliente Seed',
+                            telefone=None,
+                        )
+                        primeiro_cliente.role = 'user'
+                        primeiro_cliente.status = 'ativo'
+                        db.session.add(primeiro_cliente)
+                        db.session.commit()
+
+                    chamado = ChamadoSuporte(
+                        usuario_id=primeiro_cliente.id,
+                        titulo='Suporte seed (chat)',
+                        descricao='Chamado seed para garantir conversa inicial.',
+                        categoria_classificada='duvida',
+                        prioridade='media',
+                        status='aberto',
+                    )
+                    db.session.add(chamado)
+                    db.session.flush()
+
+                    # Mensagem inicial do admin.
+                    db.session.add(
+                        MensagemSuporte(
+                            chamado_id=chamado.id,
+                            autor_tipo='admin',
+                            autor_usuario_id=admin_user.id,
+                            conteudo='Olá! Como posso ajudar?',
+                        )
+                    )
+
+                    # Notificação opcional (não deve quebrar).
+                    try:
+                        db.session.add(
+                            Notificacao(
+                                usuario_id=primeiro_cliente.id,
+                                tipo='suporte',
+                                mensagem='Nova mensagem de suporte.',
+                            )
+                        )
+                    except Exception:
+                        pass
+
+                    db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     return app
+
