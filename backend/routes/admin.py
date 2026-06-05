@@ -386,6 +386,8 @@ def apagar_cliente(usuario_id):
 
         Pedido.query.filter(Pedido.usuario_id == usuario_id).delete(synchronize_session=False)
         ChamadoSuporte.query.filter(ChamadoSuporte.usuario_id == usuario_id).delete(synchronize_session=False)
+        from ..models import Notificacao
+        Notificacao.query.filter(Notificacao.usuario_id == usuario_id).delete(synchronize_session=False)
         db.session.delete(u)
         db.session.commit()
         return jsonify({"mensagem": "Cliente removido com sucesso"}), 200
