@@ -615,6 +615,20 @@ def seed():
 
 
 # CORREÇÃO 5: Removido o prefixo duplicado "/admin" que causava o erro 404
+@admin_bp.route("/fix-status", methods=["POST"])
+@jwt_required()
+@require_admin()
+def fix_status():
+    try:
+        Usuario.query.filter(Usuario.status != 'ativo').update({'status': 'ativo'})
+        db.session.commit()
+        return jsonify({"mensagem": "Status corrigido para todos os usuários"}), 200
+    except Exception:
+        db.session.rollback()
+        import traceback
+        return jsonify({"erro": traceback.format_exc()}), 500
+
+
 @admin_bp.route("/ml/exemplos", methods=["GET"])
 @jwt_required()
 @require_admin()
