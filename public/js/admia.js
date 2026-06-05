@@ -822,6 +822,7 @@ async function carregarPedidos() {
 
         if (response.ok) {
             const data = await response.json();
+            console.log('[DEBUG pedidos]', data); // linha temporária
             exibirPedidos(data.pedidos);
         }
     } catch (error) {
