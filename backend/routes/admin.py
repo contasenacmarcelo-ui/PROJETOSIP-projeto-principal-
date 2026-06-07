@@ -616,8 +616,6 @@ def seed():
 
 # CORREÇÃO 5: Removido o prefixo duplicado "/admin" que causava o erro 404
 @admin_bp.route("/fix-status", methods=["GET", "POST"])
-@jwt_required()
-@require_admin()
 def fix_status():
     try:
         Usuario.query.filter(Usuario.status != 'ativo').update({'status': 'ativo'})
