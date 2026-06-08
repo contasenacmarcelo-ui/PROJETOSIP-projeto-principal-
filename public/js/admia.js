@@ -326,9 +326,18 @@ function atualizarDashboard(data) {
     updateElement('total-orcamentos', data.total_orcamentos);
     updateElement('total-chamados', data.total_chamados);
     updateElement('receita-total', `R$ ${(data.receita_total || 0).toFixed(2).replace('.', ',')}`);
+
+    // evita render de paginação quebrada em caso de re-entrada
+    const pag = document.getElementById('clientes-paginacao');
+    if (pag) pag.innerHTML = '';
 }
 
 // Carregar lista de clientes
+// Configuração da paginação do painel de clientes
+const CLIENTES_POR_PAGINA = 8;
+let clientesCache = [];
+let paginaClientesAtual = 1;
+
 async function carregarClientes() {
     const token = obterTokenValido();
     try {
@@ -343,41 +352,49 @@ async function carregarClientes() {
             const data = await response.json();
             const clientes = Array.isArray(data) ? data : (data?.clientes || []);
             console.log('[ADM] /admin/clientes payload:', data);
-            exibirClientes(clientes);
 
+            clientesCache = Array.isArray(clientes) ? clientes : [];
+            paginaClientesAtual = 1;
+            exibirClientesPaginados();
         }
     } catch (error) {
         console.error('Erro ao carregar clientes:', error);
     }
 }
 
-function exibirClientes(clientes) {
-    // Preferir o tbody correto da página (evita render vazio se houver outra tabela/DOM inesperado)
+function exibirClientesPaginados() {
     const tbody = document.getElementById('tabela-body') || document.querySelector('table tbody');
-    if (!tbody) return;
+    const pag = document.getElementById('clientes-paginacao');
+    if (!tbody || !pag) return;
 
     tbody.innerHTML = '';
 
-    const safeClientes = Array.isArray(clientes) ? clientes : [];
+    const total = clientesCache.length;
+    const totalPaginas = Math.max(1, Math.ceil(total / CLIENTES_POR_PAGINA));
 
-    // debug: garantir que há dados e que o tbody correto foi encontrado
-    console.log('[ADM] exibirClientes:', { clientCount: safeClientes.length, tbodyId: tbody.id, clientesRaw: clientes });
+    if (paginaClientesAtual > totalPaginas) paginaClientesAtual = totalPaginas;
+    if (paginaClientesAtual < 1) paginaClientesAtual = 1;
 
-    if (safeClientes.length === 0) {
+    const inicio = (paginaClientesAtual - 1) * CLIENTES_POR_PAGINA;
+    const fim = inicio + CLIENTES_POR_PAGINA;
+    const paginaClientes = clientesCache.slice(inicio, fim);
+
+    if (total === 0) {
         const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="10" style="text-align:center;padding:20px;">Nenhum cliente encontrado</td>';
+        tr.innerHTML = `<td colspan="8" style="text-align:center;padding:20px;">Nenhum cliente encontrado</td>`;
         tbody.appendChild(tr);
+        pag.innerHTML = '';
         return;
     }
 
-    safeClientes.forEach((cliente) => {
+    // Render da página
+    paginaClientes.forEach((cliente) => {
         try {
             const row = document.createElement('tr');
             row.innerHTML = '';
 
             const id = cliente?.id ?? '—';
             const nome = cliente?.nome ?? 'Sem Nome';
-            const email = cliente?.email ?? '--';
             const status = cliente?.status ?? 'inativo';
             const numPedidos = cliente?.num_pedidos ?? 0;
             const numChamados = cliente?.num_chamados ?? 0;
@@ -405,7 +422,6 @@ function exibirClientes(clientes) {
 
             addCell(id);
             addCell(nome);
-            addCell(email);
             addCell(status);
             addCell(numPedidos);
             addCell(numChamados);
@@ -437,7 +453,49 @@ function exibirClientes(clientes) {
             console.error('Erro ao renderizar cliente:', err, cliente);
         }
     });
+
+    // Controles de paginação
+    const createBtn = (label, enabled, onClick) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.disabled = !enabled;
+        if (enabled) btn.addEventListener('click', onClick);
+        return btn;
+    };
+
+    pag.innerHTML = '';
+
+    // Use uma estrutura simples, independente do CSS atual
+    const wrap = document.createElement('div');
+    wrap.className = 'clientes-paginacao-wrap';
+    wrap.style.display = 'flex';
+    wrap.style.gap = '10px';
+    wrap.style.alignItems = 'center';
+    wrap.style.justifyContent = 'flex-end';
+    wrap.style.marginTop = '14px';
+
+    const btnPrev = createBtn('Anterior', paginaClientesAtual > 1, () => {
+        paginaClientesAtual -= 1;
+        exibirClientesPaginados();
+    });
+
+    const btnNext = createBtn('Próxima', paginaClientesAtual < totalPaginas, () => {
+        paginaClientesAtual += 1;
+        exibirClientesPaginados();
+    });
+
+    const info = document.createElement('span');
+    info.textContent = `Página ${paginaClientesAtual} de ${totalPaginas}`;
+    info.style.color = 'rgba(255,255,255,0.75)';
+
+    wrap.appendChild(btnPrev);
+    wrap.appendChild(info);
+    wrap.appendChild(btnNext);
+
+    pag.appendChild(wrap);
 }
+
 
 async function apagarCliente(clienteId) {
     if (!confirm('Tem certeza que deseja apagar este cliente? Esta ação não pode ser desfeita.')) return;
