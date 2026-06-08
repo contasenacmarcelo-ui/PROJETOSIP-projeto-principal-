@@ -53,7 +53,7 @@ window.fecharModalMensagem = function () {
 window.mostrarModalMensagem = function ({ titulo, mensagem, tipo = 'info', html = false } = {}) {
     let mensagemHtml;
     if (html) {
-        mensagemHtml = message || '—';
+        mensagemHtml = mensagem ?? '—';
     } else {
         mensagemHtml = escapeHtml(mensagem || '—').replace(/\n/g, '<br>');
     }

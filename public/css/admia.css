@@ -1,3 +1,5 @@
+/* Admin SIP - admia.css */
+
 * {
     margin: 0;
     padding: 0;
@@ -11,7 +13,8 @@
 
 body {
     min-height: 100vh;
-    background: radial-gradient(circle at top left, rgba(0, 204, 169, 0.12), transparent 28%),
+    background:
+        radial-gradient(circle at top left, rgba(0, 204, 169, 0.12), transparent 28%),
         radial-gradient(circle at bottom right, rgba(255, 173, 58, 0.14), transparent 22%),
         #050c1a;
     color: #f4f7fb;
@@ -229,8 +232,18 @@ select {
 table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 1080px;
+    /* Evita a tabela “passar” do container em telas menores */
+    min-width: 0;
+    table-layout: fixed;
 }
+
+
+th,
+td {
+    /* Evita colunas crescerem e estourarem */
+    max-width: 260px;
+}
+
 
 th,
 td {
@@ -286,6 +299,7 @@ td {
     gap: 20px;
 }
 
+/* Cards admin */
 .cards-row .card,
 .cards-row .support-card,
 .cards-row .ml-card {
@@ -310,6 +324,7 @@ td {
     line-height: 1.6;
 }
 
+/* Modais */
 .modal {
     display: none;
     position: fixed;
@@ -371,10 +386,10 @@ td {
     color: rgba(255, 255, 255, 0.45);
 }
 
-.form-grid select{
+.form-grid select {
     margin-bottom: 16px;
 }
-      
+
 .detalhes-secao {
     margin-top: 24px;
 }
@@ -416,12 +431,10 @@ td {
     color: rgba(255, 255, 255, 0.65);
 }
 
-
 /* Deixar o modal de detalhes com visual mais “cards” */
 #modal-detalhes .modal-content {
-    background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
 }
-
 
 .sem-dados {
     color: rgba(255, 255, 255, 0.55);
@@ -433,21 +446,21 @@ td {
     font-size: 0.95rem;
 }
 
-
-.btn-detalhes,.btn-status, .btn-resolver, .btn-responder, .btn-testar{
-    background-color: black;
+/* Botões genéricos do admin (corrige seletor/agrupamento) */
+.btn-detalhes,
+.btn-status,
+.btn-resolver,
+.btn-responder,
+.btn-testar {
+    background-color: #000;
     padding: 1%;
     border-radius: 5px;
-   
+    color: #f4f7fb;
+    border: 1px solid rgba(255, 255, 255, 0.10);
 }
-hr{
+
+hr {
     margin: 1%;
-}
-@media (max-width: 1200px) {
-    .dashboard-overview,
-    .cards-grid-large {
-        grid-template-columns: repeat(2, minmax(220px, 1fr));
-    }
 }
 
 .admin-warning {
@@ -464,6 +477,103 @@ hr{
     margin: 0;
     font-size: 0.96rem;
     line-height: 1.55;
+}
+
+/* Responsivo */ARTE 3 — MODELAGEM (Mensagens estilo WhatsApp, Admin ↔ Clientes)
+1) Estrutura no banco (modelagem)
+Hoje o projeto já tem entidades de suporte/tickets:
+
+ChamadoSuporte (chamados_suporte)
+MensagemSuporte (mensagens_suporte) com campos:
+id
+chamado_id
+autor_tipo (user/admin)
+autor_usuario_id
+conteudo
+data
+Para uma modelagem de conversa 1-para-1 entre cliente e Admin (estilo WhatsApp), a regra “cada cliente só conversa com o Admin” pode ser modelada de 2 formas (ambas sem conflito com rotas existentes):
+
+Opção A (recomendada): “Conversa” separada + “Mensagem”
+Criar tabela/coleção ConversasAdmin (uma conversa por cliente)
+
+id
+cliente_id (FK → usuarios.id, role=user)
+admin_id (FK → usuarios.id, role=admin)
+(opcional) criada_em
+Criar tabela MensagensConversasAdmin
+
+campos exatamente como você pediu:
+id
+senderId
+receiverId
+content
+timestamp
+read
+Opção B: Reutilizar MensagemSuporte como mensagens de chat
+Usar MensagemSuporte + ChamadoSuporte como “estrutura de conversa”.
+Nesse caso:
+chamado_id vira o “canal de conversa”
+autor_usuario_id vira o “senderId”
+autor_tipo e usuario_id (no chamado) definem o receiver
+adicionaria apenas campos/semânticas para read e timestamp (timestamp já existe em data)
+Mas isso mistura “suporte/ticket” com “chat 1-1”, então é menos limpo.
+Como regra adicional do projeto: já existe a mecânica de suporte e chat; então a modelagem mais segura para não quebrar rotas existentes é Opção A (tabela nova para chat direto), deixando MensagemSuporte intacta.
+
+2) Novas rotas de API necessárias (apenas listar)
+Confirmação das regras:
+
+Cliente só conversa com Admin
+Cliente nunca vê conversa de outro cliente
+Admin vê todos como contatos
+Admin abre conversa individual
+Visual WhatsApp (lista + chat)
+Rotas propostas (sem implementar):
+
+Cliente envia mensagem para Admin
+
+POST /api/chat-admin/mensagens
+Body: receiverId (opcional pois admin é fixo), content
+Cliente busca suas próprias mensagens com Admin
+
+GET /api/chat-admin/mensagens
+Query: after / limit / conversationId (conversationId pode ser derivado do cliente_id)
+Admin lista todos os usuários (contatos)
+
+GET /api/chat-admin/clientes
+Retorna lista de “contatos” (cliente_id + nome + ultima mensagem + contagem read/unread)
+Admin busca mensagens de um usuário específico
+
+GET /api/chat-admin/clientes/<int:cliente_id>/mensagens
+Admin envia mensagem para um usuário específico
+
+POST /api/chat-admin/clientes/<int:cliente_id>/mensagens
+3) Conflitos com rotas existentes (Parte 2)
+Checagem conceitual com base no levantamento anterior:
+
+O projeto já tem rotas de chat em:
+GET /chat/conversas
+GET /chat/<chamado_id>/mensagens
+POST /chat/<chamado_id>/mensagens
+Essas rotas usam ChamadoSuporte/MensagemSuporte, ou seja, “chat baseado em chamado/suporte”.
+✅ As rotas novas propostas não conflitam se você:
+
+prefixar com /api/chat-admin/...
+e não reutilizar /chat/... nem alterar os endpoints atuais.
+E você não precisaria remover/alterar nenhuma rota existente.
+
+Se aprovar essa modelagem, a próxima parte (Parte 4) seria: definir exatamente as consultas SQLAlchemy/constraints (ex.: unique por cliente na tabela de conversa) e depois alinhar com a UI estilo WhatsApp (lista esquerda + mensagens direita).
+
+
+Task Completed
+Parte 3 — modelagem concluída (sem código): proponho utilizar estrutura nova de conversa/admin ↔ cliente para obedecer as regras de visibilidade e manter MensagemSuporte/chamados intactos. Listei modelagem (campos id, senderId, receiverId, content, timestamp, read) e rotas de API novas apenas para listagem, além de confirmar que não conflitam com as rotas existentes (chat atual em /chat/*).
+
+
+Unlock pro models for better quali
+@media (max-width: 1200px) {
+    .dashboard-overview,
+    .cards-grid-large {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+    }
 }
 
 @media (max-width: 900px) {
