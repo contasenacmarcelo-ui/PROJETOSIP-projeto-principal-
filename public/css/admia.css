@@ -249,7 +249,16 @@ th,
 td {
     padding: 16px 20px;
     text-align: left;
+    vertical-align: top;
 }
+
+/* Ajuste para impedir “passar” conteúdo (email) por cima/atravessando outras colunas */
+td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
 
 th {
     background: rgba(255, 255, 255, 0.05);
