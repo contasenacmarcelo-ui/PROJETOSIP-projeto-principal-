@@ -1,4 +1,4 @@
-/* Admin SIP - admia.css */
+/* Admin SIP - admia.css (CSS válido) */
 
 * {
     margin: 0;
@@ -232,33 +232,24 @@ select {
 table {
     width: 100%;
     border-collapse: collapse;
-    /* Evita a tabela “passar” do container em telas menores */
     min-width: 0;
     table-layout: fixed;
 }
 
-
 th,
 td {
-    /* Evita colunas crescerem e estourarem */
     max-width: 260px;
-}
-
-
-th,
-td {
     padding: 16px 20px;
     text-align: left;
     vertical-align: top;
 }
 
-/* Ajuste para impedir “passar” conteúdo (email) por cima/atravessando outras colunas */
+/* Impede overflow “passar” conteúdo */
 td {
     white-space: normal;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
-
 
 th {
     background: rgba(255, 255, 255, 0.05);
@@ -308,7 +299,6 @@ td {
     gap: 20px;
 }
 
-/* Cards admin */
 .cards-row .card,
 .cards-row .support-card,
 .cards-row .ml-card {
@@ -455,7 +445,7 @@ td {
     font-size: 0.95rem;
 }
 
-/* Botões genéricos do admin (corrige seletor/agrupamento) */
+/* Botões genéricos do admin */
 .btn-detalhes,
 .btn-status,
 .btn-resolver,
@@ -488,96 +478,52 @@ hr {
     line-height: 1.55;
 }
 
-/* Responsivo */ARTE 3 — MODELAGEM (Mensagens estilo WhatsApp, Admin ↔ Clientes)
-1) Estrutura no banco (modelagem)
-Hoje o projeto já tem entidades de suporte/tickets:
+/* ================= PAGINAÇÃO (CLIENTES) ================= */
+#clientes-paginacao {
+    margin-top: 12px;
+    padding-right: 14px; /* afasta da borda arredondada */
+}
 
-ChamadoSuporte (chamados_suporte)
-MensagemSuporte (mensagens_suporte) com campos:
-id
-chamado_id
-autor_tipo (user/admin)
-autor_usuario_id
-conteudo
-data
-Para uma modelagem de conversa 1-para-1 entre cliente e Admin (estilo WhatsApp), a regra “cada cliente só conversa com o Admin” pode ser modelada de 2 formas (ambas sem conflito com rotas existentes):
+#clientes-paginacao .clientes-paginacao-wrap {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+}
 
-Opção A (recomendada): “Conversa” separada + “Mensagem”
-Criar tabela/coleção ConversasAdmin (uma conversa por cliente)
+#clientes-paginacao .clientes-paginacao-wrap button {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.86);
+    border-radius: 12px;
+    padding: 10px 14px;
+    cursor: pointer;
+}
 
-id
-cliente_id (FK → usuarios.id, role=user)
-admin_id (FK → usuarios.id, role=admin)
-(opcional) criada_em
-Criar tabela MensagensConversasAdmin
+#clientes-paginacao .clientes-paginacao-wrap button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
 
-campos exatamente como você pediu:
-id
-senderId
-receiverId
-content
-timestamp
-read
-Opção B: Reutilizar MensagemSuporte como mensagens de chat
-Usar MensagemSuporte + ChamadoSuporte como “estrutura de conversa”.
-Nesse caso:
-chamado_id vira o “canal de conversa”
-autor_usuario_id vira o “senderId”
-autor_tipo e usuario_id (no chamado) definem o receiver
-adicionaria apenas campos/semânticas para read e timestamp (timestamp já existe em data)
-Mas isso mistura “suporte/ticket” com “chat 1-1”, então é menos limpo.
-Como regra adicional do projeto: já existe a mecânica de suporte e chat; então a modelagem mais segura para não quebrar rotas existentes é Opção A (tabela nova para chat direto), deixando MensagemSuporte intacta.
+/* ================= MODAL MENSAGENS ================= */
+#modal-mensagem .modal-content {
+    width: min(100%, 680px);
+}
 
-2) Novas rotas de API necessárias (apenas listar)
-Confirmação das regras:
+.mensagem-corpo {
+    margin-top: 10px;
+    color: rgba(255, 255, 255, 0.82);
+    line-height: 1.6;
+    white-space: normal;
+}
 
-Cliente só conversa com Admin
-Cliente nunca vê conversa de outro cliente
-Admin vê todos como contatos
-Admin abre conversa individual
-Visual WhatsApp (lista + chat)
-Rotas propostas (sem implementar):
+.mensagem-botoes {
+    margin-top: 22px;
+    display: flex;
+    justify-content: flex-end;
+}
 
-Cliente envia mensagem para Admin
-
-POST /api/chat-admin/mensagens
-Body: receiverId (opcional pois admin é fixo), content
-Cliente busca suas próprias mensagens com Admin
-
-GET /api/chat-admin/mensagens
-Query: after / limit / conversationId (conversationId pode ser derivado do cliente_id)
-Admin lista todos os usuários (contatos)
-
-GET /api/chat-admin/clientes
-Retorna lista de “contatos” (cliente_id + nome + ultima mensagem + contagem read/unread)
-Admin busca mensagens de um usuário específico
-
-GET /api/chat-admin/clientes/<int:cliente_id>/mensagens
-Admin envia mensagem para um usuário específico
-
-POST /api/chat-admin/clientes/<int:cliente_id>/mensagens
-3) Conflitos com rotas existentes (Parte 2)
-Checagem conceitual com base no levantamento anterior:
-
-O projeto já tem rotas de chat em:
-GET /chat/conversas
-GET /chat/<chamado_id>/mensagens
-POST /chat/<chamado_id>/mensagens
-Essas rotas usam ChamadoSuporte/MensagemSuporte, ou seja, “chat baseado em chamado/suporte”.
-✅ As rotas novas propostas não conflitam se você:
-
-prefixar com /api/chat-admin/...
-e não reutilizar /chat/... nem alterar os endpoints atuais.
-E você não precisaria remover/alterar nenhuma rota existente.
-
-Se aprovar essa modelagem, a próxima parte (Parte 4) seria: definir exatamente as consultas SQLAlchemy/constraints (ex.: unique por cliente na tabela de conversa) e depois alinhar com a UI estilo WhatsApp (lista esquerda + mensagens direita).
-
-
-Task Completed
-Parte 3 — modelagem concluída (sem código): proponho utilizar estrutura nova de conversa/admin ↔ cliente para obedecer as regras de visibilidade e manter MensagemSuporte/chamados intactos. Listei modelagem (campos id, senderId, receiverId, content, timestamp, read) e rotas de API novas apenas para listagem, além de confirmar que não conflitam com as rotas existentes (chat atual em /chat/*).
-
-
-Unlock pro models for better quali
+/* Responsivo */
 @media (max-width: 1200px) {
     .dashboard-overview,
     .cards-grid-large {
@@ -617,23 +563,5 @@ Unlock pro models for better quali
         flex-direction: column;
         align-items: flex-start;
     }
-}
-
-/* ================= MODAL MENSAGENS (SUBSTITUI ALERT) ================= */
-#modal-mensagem .modal-content {
-    width: min(100%, 680px);
-}
-
-.mensagem-corpo {
-    margin-top: 10px;
-    color: rgba(255, 255, 255, 0.82);
-    line-height: 1.6;
-    white-space: normal;
-}
-
-.mensagem-botoes {
-    margin-top: 22px;
-    display: flex;
-    justify-content: flex-end;
 }
 

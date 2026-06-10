@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = 'https://projetosip-projeto-principal.onrender.com/api';
 
 function getToken() {
     return localStorage.getItem('access_token');

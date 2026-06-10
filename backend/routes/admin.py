@@ -401,6 +401,16 @@ def apagar_cliente(usuario_id):
         return jsonify({"erro": traceback.format_exc()}), 500
 
 
+@admin_bp.route("/cliente/<int:usuario_id>", methods=["GET", "DELETE"])
+@jwt_required()
+@require_admin()
+def cliente_singular(usuario_id):
+    from flask import request
+    if request.method == "GET":
+        return get_cliente_detalhe(usuario_id)
+    return apagar_cliente(usuario_id)
+
+
 @admin_bp.route("/pedidos/<int:pedido_id>", methods=["DELETE"])
 @jwt_required()
 @require_admin()
@@ -464,9 +474,7 @@ def get_pedidos():
         return jsonify({"pedidos": pedidos_data}), 200
     except Exception:
         import traceback
-        erro = traceback.format_exc()
-        print("[ERRO PEDIDOS]", erro)
-        return jsonify({"pedidos": [], "debug_erro": erro}), 200
+        return jsonify({"pedidos": pedidos_data}), 200
 
 
 @admin_bp.route("/pedido/<int:pedido_id>", methods=["GET", "DELETE"])

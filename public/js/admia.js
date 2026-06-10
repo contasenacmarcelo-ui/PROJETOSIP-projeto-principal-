@@ -889,8 +889,17 @@ async function carregarPedidos() {
 }
 
 function exibirPedidos(pedidos) {
+    if (!pedidos || !Array.isArray(pedidos) || pedidos.length === 0) {
+        const container = document.getElementById('pedidos-container');
+        if (container) {
+            container.innerHTML = '<p style="color:#888;padding:1rem;">Nenhum pedido encontrado.</p>';
+        }
+        return;
+    }
+
     const container = document.getElementById('pedidos-container');
     if (!container) return;
+
 
     container.innerHTML = '';
     const safePedidos = Array.isArray(pedidos) ? pedidos : [];
