@@ -236,7 +236,9 @@ def get_dashboard():
             }
         )
     except Exception as e:
-        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
+        import traceback
+        print("[ERRO PEDIDOS]", traceback.format_exc())
+        return jsonify({"pedidos": []}), 200
 
 
 # CORREÇÃO 2 e 3: Adicionado suporte a POST e proteção JWT alinhada com as demais rotas
@@ -460,8 +462,11 @@ def get_pedidos():
                 }
             )
         return jsonify({"pedidos": pedidos_data}), 200
-    except Exception as e:
-        return jsonify({"error": str(e), "route": request.path, "status": "failed"}), 500
+    except Exception:
+        import traceback
+        erro = traceback.format_exc()
+        print("[ERRO PEDIDOS]", erro)
+        return jsonify({"pedidos": [], "debug_erro": erro}), 200
 
 
 @admin_bp.route("/pedido/<int:pedido_id>", methods=["GET", "DELETE"])
