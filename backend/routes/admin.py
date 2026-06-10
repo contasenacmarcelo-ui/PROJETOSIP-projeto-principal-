@@ -457,24 +457,51 @@ def get_pedidos():
         pedidos = Pedido.query.all()
         pedidos_data = []
         for pedido in pedidos:
-            usuario = Usuario.query.get(pedido.usuario_id)
-            pedidos_data.append(
-                {
-                    "id": pedido.id,
-                    "usuario_id": pedido.usuario_id,
-                    "usuario_nome": usuario.nome if usuario else "Usuário não encontrado",
-                    "usuario_email": usuario.email if usuario else "",
-                    "servico": pedido.tipo_servico,
-                    "descricao": pedido.descricao,
-                    "status": pedido.status,
-                    "valor_estimado": float(pedido.valor_estimado) if pedido.valor_estimado else None,
-                    "data_criacao": pedido.data_criacao.isoformat() if pedido.data_criacao else None,
-                }
-            )
+            try:
+                usuario = Usuario.query.get(pedido.usuario_id)
+                usuario_nome = usuario.nome if usuario else "Usuário não encontrado"
+                try:
+                    usuario_email = usuario.email if usuario else ""
+                except Exception:
+                    usuario_email = "—"
+
+                try:
+                    valor = float(pedido.valor_estimado) if pedido.valor_estimado is not None else 0.0
+                except Exception:
+                    valor = 0.0
+
+                try:
+                    data_criacao = pedido.data_criacao.isoformat() if pedido.data_criacao else None
+                except Exception:
+                    data_criacao = None
+
+                pedidos_data.append(
+                    {
+                        "id": pedido.id,
+                        "usuario_id": pedido.usuario_id,
+                        "usuario_nome": usuario_nome,
+                        "usuario_email": usuario_email,
+                        "servico": pedido.tipo_servico or "",
+                        "descricao": pedido.descricao or "",
+                        "status": pedido.status or "",
+                        "valor_estimado": valor,
+                        "data_criacao": data_criacao,
+                    }
+                )
+            except Exception:
+                import traceback
+
+                print(f"[ERRO PEDIDO ID {pedido.id}]", traceback.format_exc())
+                continue
+
+        print(f"[DEBUG] Total pedidos no banco: {len(pedidos)} | Serializados: {len(pedidos_data)}")
         return jsonify({"pedidos": pedidos_data}), 200
     except Exception:
         import traceback
+
+        print("[ERRO get_pedidos]", traceback.format_exc())
         return jsonify({"pedidos": pedidos_data}), 200
+
 
 
 @admin_bp.route("/pedido/<int:pedido_id>", methods=["GET", "DELETE"])
