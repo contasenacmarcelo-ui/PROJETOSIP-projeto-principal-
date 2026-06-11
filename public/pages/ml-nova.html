@@ -219,6 +219,10 @@
 
       // Carrega usuários cadastrados (admin precisa ter acesso para ver usuários)
       async function carregarUsuarios() {
+        if (!getToken || !getToken()) {
+          setResult('<p style="color:#ff4757;">Faça login novamente (token ausente).</p>');
+          return;
+        }
         try {
           // Endpoint pode variar; tenta o padrão usado no admin.
           // Se não existir, cai no fallback local do loggedInUser/users.
