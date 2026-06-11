@@ -219,7 +219,8 @@
 
       // Carrega usuários cadastrados (admin precisa ter acesso para ver usuários)
       async function carregarUsuarios() {
-        if (!getToken || !getToken()) {
+        const token = (typeof getToken === 'function') ? getToken() : null;
+        if (!token) {
           setResult('<p style="color:#ff4757;">Faça login novamente (token ausente).</p>');
           return;
         }
