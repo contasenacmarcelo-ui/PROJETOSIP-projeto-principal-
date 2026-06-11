@@ -227,9 +227,19 @@
         try {
           // Endpoint pode variar; tenta o padrão usado no admin.
           // Se não existir, cai no fallback local do loggedInUser/users.
+          const token2 =
+            (typeof getToken === 'function' ? getToken() : null) ||
+            localStorage.getItem('access_token');
+
           const resp = await fetch(`${API_BASE}/usuarios`, {
-            headers: apiHeaders(true)
+            headers: {
+              'Authorization': `Bearer ${token2}`,
+              'Content-Type': 'application/json',
+            }
           });
+          // Debug local (não persiste): ajuda a identificar token ausente
+          // console.log('ml-nova token:', (typeof getToken === 'function') ? getToken() : null);
+          // console.log('ml-nova headers:', apiHeaders(true));
           const data = await resp.json().catch(() => null);
 
           let users = [];
@@ -291,9 +301,16 @@
           setResult('<p style="color: rgba(255,255,255,0.7);">Executando...</p>');
 
           // IMPORTANTE: só chama 1 modelo por vez (fluxo único).
+          const token2 =
+            (typeof getToken === 'function' ? getToken() : null) ||
+            localStorage.getItem('access_token');
+
           const response = await fetch(url, {
             method: 'POST',
-            headers: apiHeaders(true),
+            headers: {
+              'Authorization': `Bearer ${token2}`,
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ usuario_id: Number(usuarioId), ...payload })
           });
 
