@@ -278,7 +278,9 @@
           return;
         }
 
-        const url = `${API_BASE}/ml/${modelo}`;
+        // Rotas reais do ML estão em /api/ml/* (sem /api/ml prefix duplicado)
+        // Ex: /api/ml/classificador-suporte, /api/ml/extrator-tags, etc.
+        const url = `${API_BASE}/${modelo}`;
 
         try {
           setResult('<p style="color: rgba(255,255,255,0.7);">Executando...</p>');
