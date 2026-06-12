@@ -5,9 +5,10 @@ from ..ml_models.clustering_clientes import clusterizar_cliente
 from ..utils import require_admin
 from datetime import datetime
 
-usuarios_bp = Blueprint('usuarios', __name__)
+usuarios_bp = Blueprint("usuarios", __name__)
 
-@usuarios_bp.route('/usuarios', methods=['GET'])
+
+@usuarios_bp.route("/usuarios", methods=["GET"])
 @jwt_required()
 @require_admin()
 def get_usuarios():
@@ -18,13 +19,30 @@ def get_usuarios():
     """
     try:
         usuarios = Usuario.query.all()
-        return jsonify([u.to_dict() for u in usuarios]), 200
+
+        # Serialização resiliente: se algum usuário falhar no to_dict (ex.: decrypt/atributos nulos),
+        # não derruba a rota inteira (evita 500 no /api/usuarios).
+        resultado = []
+        for u in usuarios:
+            try:
+                resultado.append(u.to_dict())
+            except Exception:
+                # fallback mínimo
+                resultado.append(
+                    {
+                        "id": getattr(u, "id", None),
+                        "nome": getattr(u, "nome", ""),
+                        "email": "",
+                    }
+                )
+
+        return jsonify(resultado), 200
+
     except Exception:
         return jsonify({"error": "Erro ao listar usuários"}), 500
 
 
-
-@usuarios_bp.route('/usuarios/<int:user_id>', methods=['GET'])
+@usuarios_bp.route("/usuarios/<int:user_id>", methods=["GET"])
 @jwt_required()
 def get_usuario(user_id):
     current_user_id = int(get_jwt_identity())
@@ -39,7 +57,8 @@ def get_usuario(user_id):
 
     return jsonify(usuario.to_dict()), 200
 
-@usuarios_bp.route('/usuarios/<int:user_id>', methods=['PUT'])
+
+@usuarios_bp.route("/usuarios/<int:user_id>", methods=["PUT"])
 @jwt_required()
 def update_usuario(user_id):
     current_user_id = int(get_jwt_identity())
@@ -54,7 +73,7 @@ def update_usuario(user_id):
     data = request.get_json()
 
     # Campos que podem ser atualizados
-    allowed_fields = ['nome', 'telefone']
+    allowed_fields = ["nome", "telefone"]
 
     for field in allowed_fields:
         if field in data:
@@ -62,15 +81,18 @@ def update_usuario(user_id):
 
     try:
         db.session.commit()
-        return jsonify({
-            "message": "Usuário atualizado com sucesso",
-            "user": usuario.to_dict()
-        }), 200
+        return (
+            jsonify(
+                {"message": "Usuário atualizado com sucesso", "user": usuario.to_dict()}
+            ),
+            200,
+        )
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Erro ao atualizar usuário"}), 500
 
-@usuarios_bp.route('/usuarios/<int:user_id>/cluster', methods=['GET'])
+
+@usuarios_bp.route("/usuarios/<int:user_id>/cluster", methods=["GET"])
 @jwt_required()
 def get_usuario_cluster(user_id):
     current_user_id = int(get_jwt_identity())
@@ -85,14 +107,16 @@ def get_usuario_cluster(user_id):
     pedidos = Pedido.query.filter_by(usuario_id=user_id).all()
     valor_total = sum(p.valor_estimado or 0 for p in pedidos)
     pedidos_totais = len(pedidos)
-    tipo_ultimo_pedido = pedidos[-1].tipo_servico if pedidos else 'website'
-    tempo_como_cliente = (datetime.utcnow() - usuario.data_cadastro).days if usuario.data_cadastro else 0
+    tipo_ultimo_pedido = pedidos[-1].tipo_servico if pedidos else "website"
+    tempo_como_cliente = (
+        (datetime.utcnow() - usuario.data_cadastro).days if usuario.data_cadastro else 0
+    )
 
     historico = {
         "pedidos_totais": pedidos_totais,
         "valor_total_gasto": valor_total,
         "tempo_como_cliente_dias": tempo_como_cliente,
-        "tipo_ultimo_pedido": tipo_ultimo_pedido
+        "tipo_ultimo_pedido": tipo_ultimo_pedido,
     }
 
     resultado = clusterizar_cliente(historico)
