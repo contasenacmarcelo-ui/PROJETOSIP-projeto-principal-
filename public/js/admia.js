@@ -872,6 +872,7 @@ async function carregarPedidos() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
+
         if (response.status === 401) {
             mostrarModalMensagem({ titulo: 'Acesso negado', mensagem: 'Sessão expirada. Faça login novamente.', tipo: 'erro' });
             window.location.href = '/public/pages/login.html';
@@ -888,7 +889,39 @@ async function carregarPedidos() {
     }
 }
 
+function apagarPedido(pedidoId) {
+    if (!confirm('Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.')) return;
+
+    const token = obterTokenValido();
+    if (!token) {
+        mostrarModalMensagem({ titulo: 'Sessão expirada', mensagem: 'Faça login novamente para continuar.', tipo: 'erro' });
+        window.location.href = '/public/pages/login.html';
+        return;
+    }
+
+    fetch(`${API_BASE}/admin/pedidos/${pedidoId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+        .then(async (resp) => {
+            const txt = await resp.text().catch(() => '');
+            let data = null;
+            try { data = txt ? JSON.parse(txt) : null; } catch { data = null; }
+            if (!resp.ok) {
+                throw new Error(data?.erro || data?.error || data?.message || txt || `HTTP ${resp.status}`);
+            }
+            mostrarModalMensagem({ titulo: 'Sucesso', mensagem: 'Pedido excluído com sucesso.', tipo: 'sucesso' });
+            await carregarPedidos();
+            await carregarDashboard();
+        })
+        .catch((err) => {
+            console.error('Erro ao excluir pedido:', err);
+            mostrarModalMensagem({ titulo: 'Erro', mensagem: err?.message || 'Erro ao excluir pedido.', tipo: 'erro' });
+        });
+}
+
 function exibirPedidos(pedidos) {
+
     if (!pedidos || !Array.isArray(pedidos) || pedidos.length === 0) {
         const container = document.getElementById('pedidos-container');
         if (container) {
@@ -966,9 +999,19 @@ function exibirPedidos(pedidos) {
             info.appendChild(pValor);
             info.appendChild(pData);
 
+            // Botão exclusivo por pedido (com confirm nativo)
+            const btnApagar = document.createElement('button');
+            btnApagar.className = 'btn-apagar';
+            btnApagar.type = 'button';
+            btnApagar.title = 'Apagar pedido';
+            btnApagar.innerHTML = '<i class="bi bi-trash"></i> Excluir';
+            btnApagar.setAttribute('onclick', `apagarPedido(${pedido?.id ?? 'null'})`);
+
             card.appendChild(header);
             card.appendChild(info);
+            card.appendChild(btnApagar);
             container.appendChild(card);
+
         } catch (e) {
             console.error(e);
         }
