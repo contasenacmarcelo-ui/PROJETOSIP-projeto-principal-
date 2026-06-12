@@ -127,13 +127,18 @@ function renderPreview(dados) {
 }
 
 async function processar(dados) {
+  const token2 = (typeof getToken === 'function' ? getToken() : null) || localStorage.getItem('access_token');
   const processResponse = await fetch('/api/ml-executivo/processar',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token2 ? { 'Authorization': `Bearer ${token2}` } : {}),
+      },
       body: JSON.stringify(dados)
     }
   );
+
 
   if (!processResponse.ok) {
     const text = await processResponse.text().catch(() => '');
