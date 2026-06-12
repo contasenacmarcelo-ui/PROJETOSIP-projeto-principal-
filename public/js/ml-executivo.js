@@ -2,7 +2,14 @@
 
 async function fetchDados(minEach = 5, limit = 10) {
   const url = `/api/ml-executivo/dados?min_each=${encodeURIComponent(minEach)}&limit=${encodeURIComponent(limit)}`;
-  const response = await fetch(url);
+  const token2 = (typeof getToken === 'function' ? getToken() : null) || localStorage.getItem('access_token');
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': token2 ? `Bearer ${token2}` : '',
+      'Content-Type': 'application/json',
+    },
+  });
+
   if (!response.ok) {
     // Compatibilidade: se a rota não existir em algum deploy antigo,
     // tenta fallback para o endpoint antigo (quando aplicável).
