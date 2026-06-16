@@ -559,10 +559,14 @@ function exibirModalDetalhes(data) {
         if (elem) elem.textContent = value;
     };
 
-    updateElement('det-nome', data.usuario.nome);
-    updateElement('det-email', data.usuario.email);
-    updateElement('det-telefone', data.usuario.telefone || '—');
-    updateElement('det-status', data.usuario.status);
+    const usuario = data?.usuario || {};
+
+    // Evita crash quando o backend retornar payload inesperado (ex.: data.usuario indefinido)
+    updateElement('det-nome', usuario?.nome ?? '—');
+    updateElement('det-email', usuario?.email ?? '—');
+    updateElement('det-telefone', usuario?.telefone || '—');
+    updateElement('det-status', usuario?.status ?? '—');
+
 
     const detPedidos = document.getElementById('det-pedidos');
     if (detPedidos) {
