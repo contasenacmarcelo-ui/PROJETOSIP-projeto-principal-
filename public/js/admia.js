@@ -561,11 +561,18 @@ function exibirModalDetalhes(data) {
 
     const usuario = data?.usuario || {};
 
-    // Evita crash quando o backend retornar payload inesperado (ex.: data.usuario indefinido)
-    updateElement('det-nome', usuario?.nome ?? '—');
-    updateElement('det-email', usuario?.email ?? '—');
-    updateElement('det-telefone', usuario?.telefone || '—');
-    updateElement('det-status', usuario?.status ?? '—');
+    // Alguns endpoints retornam `usuario` aninhado, outros retornam campos diretamente.
+    // Aqui aceitamos ambos formatos para evitar mostrar apenas '--'.
+    const nome = usuario?.nome ?? data?.nome ?? '—';
+    const email = usuario?.email ?? data?.email ?? '—';
+    const telefone = usuario?.telefone ?? data?.telefone ?? '—';
+    const status = usuario?.status ?? data?.status ?? '—';
+
+    updateElement('det-nome', nome);
+    updateElement('det-email', email);
+    updateElement('det-telefone', telefone || '—');
+    updateElement('det-status', status);
+
 
 
     const detPedidos = document.getElementById('det-pedidos');
