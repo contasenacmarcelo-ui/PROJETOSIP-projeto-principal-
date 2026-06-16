@@ -365,7 +365,15 @@ async function carregarClientes() {
 function exibirClientesPaginados() {
     const tbody = document.getElementById('tabela-body') || document.querySelector('table tbody');
     const pag = document.getElementById('clientes-paginacao');
-    if (!tbody || !pag) return;
+
+    // Alguns builds/carregamentos podem não renderizar #clientes-paginacao.
+    // Neste caso, tentamos o contêiner via seletor legado (id alternativo), evitando que a paginação “sumir”.
+    if (!pag) {
+        return; // fallback: sem paginação
+    }
+
+    if (!tbody) return;
+
 
     tbody.innerHTML = '';
 
