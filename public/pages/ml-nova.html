@@ -332,10 +332,16 @@
         }
       }
 
+      // Agora o botão executa direto (sem modal)
       botaoInput?.addEventListener('click', () => {
-        textarea.value = '';
-        openModal();
+        // Se for clustering e o textarea estiver vazio, envia {} (backend só precisa do historico, que pode ser {} )
+        const modelo = modeloSelect.value;
+        if (modelo === 'clustering-cliente' && (!textarea.value || !textarea.value.trim())) {
+          textarea.value = '{}';
+        }
+        executar();
       });
+
 
       close?.addEventListener('click', closeModal);
       cancel?.addEventListener('click', closeModal);
