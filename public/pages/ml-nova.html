@@ -343,7 +343,16 @@
         if (e.target === modal) closeModal();
       });
 
-      confirm?.addEventListener('click', executar);
+      confirm?.addEventListener('click', () => {
+        // Para o clustering de clientes, o backend só precisa do historico (que não depende do textarea).
+        // Então, ao clicar, enviamos {} se o usuário não escreveu nada.
+        const modelo = modeloSelect.value;
+        if (modelo === 'clustering-cliente' && (!textarea.value || !textarea.value.trim())) {
+          textarea.value = '{}';
+        }
+        executar();
+      });
+
 
       modeloSelect?.addEventListener('change', updateButtonState);
       usuarioSelect?.addEventListener('change', updateButtonState);
