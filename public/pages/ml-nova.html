@@ -201,15 +201,19 @@
         modal.classList.remove('ativo');
       }
 
-      function parseMaybeJson(text) {
+      function toPayloadFromTextarea(text) {
         const raw = (text || '').trim();
-        if (!raw) return {};
+        if (!raw) return {}; // vazio => {} antes
+
+        // Se já for JSON válido, mantém
         try {
           return JSON.parse(raw);
-        } catch (e) {
-          return null;
+        } catch (_) {
+          // Não é JSON: converte texto puro em { descricao: "..." } (compatível com ML)
+          return { descricao: raw };
         }
       }
+
 
       function updateButtonState() {
         const okUsuario = !!usuarioSelect?.value;
@@ -287,11 +291,9 @@
           return;
         }
 
-        const payload = parseMaybeJson(textarea.value);
-        if (payload === null) {
-          setResult('<p style="color: #ff4757;">JSON inválido no input.</p>');
-          return;
-        }
+        const payload = toPayloadFromTextarea(textarea.value);
+        // toPayloadFromTextarea nunca retorna null: vazio => {}, texto => { descricao: texto }
+
 
         // Rotas reais do ML estão em /api/ml/* (sem /api/ml prefix duplicado)
         // Ex: /api/ml/classificador-suporte, /api/ml/extrator-tags, etc.
