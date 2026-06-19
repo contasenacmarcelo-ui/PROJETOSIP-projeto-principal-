@@ -192,11 +192,10 @@
       }
 
       function openModal() {
-        const modelo = modeloSelect?.value;
-        if (modelo === 'clustering-cliente') return; // nunca abrir no clustering
         modal.style.display = 'block';
         modal.classList.add('ativo');
       }
+
 
 
       function closeModal() {
@@ -355,15 +354,15 @@
         }
       }
 
-      // Agora o botão executa direto (sem modal)
+      // Agora o botão abre o modal e deixa o usuário confirmar
       botaoInput?.addEventListener('click', () => {
-        // Se for clustering e o textarea estiver vazio, envia {} (backend só precisa do historico, que pode ser {} )
         const modelo = modeloSelect.value;
         if (modelo === 'clustering-cliente' && (!textarea.value || !textarea.value.trim())) {
           textarea.value = '{}';
         }
-        executar();
+        openModal();
       });
+
 
 
       close?.addEventListener('click', closeModal);
