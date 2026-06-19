@@ -192,9 +192,12 @@
       }
 
       function openModal() {
+        const modelo = modeloSelect?.value;
+        if (modelo === 'clustering-cliente') return; // nunca abrir no clustering
         modal.style.display = 'block';
         modal.classList.add('ativo');
       }
+
 
       function closeModal() {
         modal.style.display = 'none';
@@ -203,7 +206,7 @@
 
       function toPayloadFromTextarea(text) {
         const raw = (text || '').trim();
-        if (!raw) return {}; // vazio => {} antes
+        if (!raw) return {};
 
         // Se já for JSON válido, mantém
         try {
@@ -214,6 +217,26 @@
         }
       }
 
+      // Regras do modal:
+      // - Para clustering-cliente: NÃO abre modal e já prepara {} automaticamente
+      // - Para os outros modelos: abre modal normalmente
+      function deveMostrarModalParaModelo(modelo) {
+        return modelo !== 'clustering-cliente';
+      }
+
+      function aplicarRegraModalAtual() {
+        const modelo = modeloSelect?.value;
+        if (!modelo) return;
+
+        // Garante estado do textarea para clustering
+        if (!deveMostrarModalParaModelo(modelo)) {
+          if (!textarea.value || !textarea.value.trim()) {
+            textarea.value = '{}';
+          }
+          // se o modal estiver aberto por algum motivo, fecha
+          closeModal();
+        }
+      }
 
       function updateButtonState() {
         const okUsuario = !!usuarioSelect?.value;
