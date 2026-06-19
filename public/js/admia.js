@@ -125,47 +125,6 @@ function initializeAdmin() {
 
     setupModals();
 
-    // ======= Alternar seções pelo hash (ex: #conversas) =======
-    // Regra do dashboard: mostrar APENAS usuários (clientes) e pedidos ao carregar.
-    // Ao usar hash, a área pode ser alternada, mas o dashboard deve manter usuários+pedidos.
-    if (typeof setupSectionsByHash === 'function') {
-        setupSectionsByHash();
-    } else {
-        window.setupSectionsByHash = window.setupSectionsByHash || function () {
-            const secoes = Array.from(document.querySelectorAll('section.section'));
-            if (!secoes.length) return;
-
-            const setSection = (ativoId) => {
-                // Dashboard: exibir clientes+pedidos, esconder o resto
-                if (!ativoId || ativoId === 'dashboard') {
-                    secoes.forEach(sec => {
-                        if (!sec || !sec.id) return;
-                        const keep = (sec.id === 'clientes' || sec.id === 'pedidos');
-                        sec.style.display = keep ? 'block' : 'none';
-                    });
-                    return;
-                }
-
-                // Outras telas: exibir somente a seção casada
-                secoes.forEach(sec => {
-                    if (!sec || !sec.id) return;
-                    sec.style.display = (sec.id === ativoId) ? 'block' : 'none';
-                });
-            };
-
-            const hash = (window.location.hash || '').replace('#', '').trim();
-            setSection(hash || 'dashboard');
-
-            window.addEventListener('hashchange', () => {
-                const h = (window.location.hash || '').replace('#', '').trim();
-                setSection(h || 'dashboard');
-            });
-        };
-        window.setupSectionsByHash();
-    }
-
-
-
     carregarDashboard();
     carregarClientes();
     carregarMensagensSuporte();
@@ -181,7 +140,6 @@ function initializeAdmin() {
         btn.addEventListener('click', logout);
     });
 }
-
 
 // ======= CHAT ADMIN =======
 // Corrige: ReferenceError: setupChatAdmin is not defined
@@ -303,8 +261,6 @@ function setupChatAdmin() {
 function setupModals() {
     const modal = document.getElementById("modal");
     const modalDetalhes = document.getElementById("modal-detalhes");
-
-
 
     window.abrirModal = function () {
         if (modal) modal.style.display = "block";
