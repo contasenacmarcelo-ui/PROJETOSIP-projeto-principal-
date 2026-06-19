@@ -113,6 +113,7 @@ async function verificarAutenticacao() {
 }
 
 function initializeAdmin() {
+
     const btn = document.getElementById("btn-menu");
     const menu = document.getElementById("menu-mobile");
 
