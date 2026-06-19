@@ -203,9 +203,26 @@
         modal.classList.remove('ativo');
       }
 
+      // Função auxiliar: tenta pegar o token em vários formatos usados no projeto
+      function obterTokenValido() {
+        let token = typeof getToken === 'function' ? getToken() : null;
+        if (!token) token = localStorage.getItem('access_token');
+        if (!token) token = localStorage.getItem('token');
+        if (!token) {
+          try {
+            const logged = JSON.parse(localStorage.getItem('loggedInUser') || 'null');
+            token = logged?.access_token || logged?.token;
+          } catch (e) {
+            token = null;
+          }
+        }
+        return token;
+      }
+
       function toPayloadFromTextarea(text) {
         const raw = (text || '').trim();
         if (!raw) return {};
+
 
         // Se já for JSON válido, mantém
         try {
@@ -253,9 +270,8 @@
         try {
           // Endpoint pode variar; tenta o padrão usado no admin.
           // Se não existir, cai no fallback local do loggedInUser/users.
-          const token2 =
-            (typeof getToken === 'function' ? getToken() : null) ||
-            localStorage.getItem('access_token');
+          const token2 = obterTokenValido();
+
 
           const resp = await fetch(`${API_BASE}/usuarios`, {
             headers: {
@@ -325,9 +341,12 @@
           setResult('<p style="color: rgba(255,255,255,0.7);">Executando...</p>');
 
           // IMPORTANTE: só chama 1 modelo por vez (fluxo único).
-          const token2 =
-            (typeof getToken === 'function' ? getToken() : null) ||
-            localStorage.getItem('access_token');
+          const token2 = obterTokenValido();
+          if (!token2) {
+            setResult('<p style="color: #ff4757;">Token ausente. Faça login novamente.</p>');
+            return;
+          }
+
 
           const response = await fetch(url, {
             method: 'POST',
