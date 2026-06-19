@@ -126,15 +126,27 @@ function initializeAdmin() {
     setupModals();
 
     // ======= Alternar seções pelo hash (ex: #conversas) =======
+    // Regra do dashboard: mostrar APENAS usuários (clientes) e pedidos ao carregar.
+    // Ao usar hash, a área pode ser alternada, mas o dashboard deve manter usuários+pedidos.
     if (typeof setupSectionsByHash === 'function') {
         setupSectionsByHash();
     } else {
-        // fallback: define função em runtime caso não exista (evita ReferenceError)
         window.setupSectionsByHash = window.setupSectionsByHash || function () {
             const secoes = Array.from(document.querySelectorAll('section.section'));
             if (!secoes.length) return;
 
             const setSection = (ativoId) => {
+                // Dashboard: exibir clientes+pedidos, esconder o resto
+                if (!ativoId || ativoId === 'dashboard') {
+                    secoes.forEach(sec => {
+                        if (!sec || !sec.id) return;
+                        const keep = (sec.id === 'clientes' || sec.id === 'pedidos');
+                        sec.style.display = keep ? 'block' : 'none';
+                    });
+                    return;
+                }
+
+                // Outras telas: exibir somente a seção casada
                 secoes.forEach(sec => {
                     if (!sec || !sec.id) return;
                     sec.style.display = (sec.id === ativoId) ? 'block' : 'none';
@@ -151,6 +163,7 @@ function initializeAdmin() {
         };
         window.setupSectionsByHash();
     }
+
 
 
     carregarDashboard();
