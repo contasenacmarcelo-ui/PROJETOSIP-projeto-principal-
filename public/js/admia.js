@@ -126,7 +126,32 @@ function initializeAdmin() {
     setupModals();
 
     // ======= Alternar seções pelo hash (ex: #conversas) =======
-    setupSectionsByHash();
+    if (typeof setupSectionsByHash === 'function') {
+        setupSectionsByHash();
+    } else {
+        // fallback: define função em runtime caso não exista (evita ReferenceError)
+        window.setupSectionsByHash = window.setupSectionsByHash || function () {
+            const secoes = Array.from(document.querySelectorAll('section.section'));
+            if (!secoes.length) return;
+
+            const setSection = (ativoId) => {
+                secoes.forEach(sec => {
+                    if (!sec || !sec.id) return;
+                    sec.style.display = (sec.id === ativoId) ? 'block' : 'none';
+                });
+            };
+
+            const hash = (window.location.hash || '').replace('#', '').trim();
+            setSection(hash || 'dashboard');
+
+            window.addEventListener('hashchange', () => {
+                const h = (window.location.hash || '').replace('#', '').trim();
+                setSection(h || 'dashboard');
+            });
+        };
+        window.setupSectionsByHash();
+    }
+
 
     carregarDashboard();
     carregarClientes();
