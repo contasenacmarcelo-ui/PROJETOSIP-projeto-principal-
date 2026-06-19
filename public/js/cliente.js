@@ -434,10 +434,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     toastSucesso('Pedido enviado com sucesso!');
                 }
 
-                setTimeout(() => {
-                    modalNovoPedido.classList.remove('ativo');
-                    limparFormNovoPedido();
-                }, 1500);
+                // Fecha o modal imediatamente no sucesso (evita ficar aberto por delay/erro assíncrono)
+                modalNovoPedido.classList.remove('ativo');
+                limparFormNovoPedido();
+
             })
             .catch(error => {
                 console.error('Erro ao enviar pedido:', error);
