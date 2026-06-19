@@ -125,6 +125,9 @@ function initializeAdmin() {
 
     setupModals();
 
+    // ======= Alternar seções pelo hash (ex: #conversas) =======
+    setupSectionsByHash();
+
     carregarDashboard();
     carregarClientes();
     carregarMensagensSuporte();
@@ -140,6 +143,7 @@ function initializeAdmin() {
         btn.addEventListener('click', logout);
     });
 }
+
 
 // ======= CHAT ADMIN =======
 // Corrige: ReferenceError: setupChatAdmin is not defined
@@ -261,6 +265,8 @@ function setupChatAdmin() {
 function setupModals() {
     const modal = document.getElementById("modal");
     const modalDetalhes = document.getElementById("modal-detalhes");
+
+
 
     window.abrirModal = function () {
         if (modal) modal.style.display = "block";
