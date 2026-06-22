@@ -130,7 +130,7 @@ btnEnviar.addEventListener("click", () => {
     }
 
     // ENVIAR PARA O SERVIDOR
-fetch('/api/orcamentos',
+    fetch('/api/orcamentos', {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(orcamento)
