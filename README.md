@@ -10,6 +10,11 @@ O SIP é uma aplicação full-stack construída com **Flask** no backend e **HTM
 
 ---
 
+## Link do site:
+https://projetosip-projeto-principal.onrender.com/
+
+---
+
 ## Funcionalidades
 
 - **Autenticação segura** com JWT, senhas em Argon2 e dados pessoais criptografados em repouso
