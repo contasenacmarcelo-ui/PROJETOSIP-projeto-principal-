@@ -127,6 +127,9 @@ btnEnviar.addEventListener("click", () => {
     };
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
+    } else {
+        if (typeof toastErro === 'function') toastErro('Faça login para solicitar orçamento.');
+        return;
     }
 
     // ENVIAR PARA O SERVIDOR
