@@ -163,10 +163,6 @@ python create_seed_data.py    # (Opcional) Popula com dados de exemplo
 python run.py
 ```
 
-A API estará disponível em `http://localhost:5000`.
-
----
-
 ## Deploy (Railway / PaaS)
 
 O projeto inclui um `Procfile` pronto para uso com Gunicorn:
